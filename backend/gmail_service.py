@@ -70,11 +70,28 @@ def exchange_code_for_tokens(code: str) -> Dict[str, Any]:
     req = urllib.request.Request(
         GOOGLE_TOKEN_URL,
         data=data,
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "MailShield-AI/2.1"
+        }
     )
     
-    with urllib.request.urlopen(req, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_msg = ""
+        try:
+            raw_err = e.read().decode("utf-8")
+            err_json = json.loads(raw_err)
+            err_msg = err_json.get("error_description") or err_json.get("error") or raw_err
+        except Exception:
+            err_msg = str(e)
+        logger.error(f"Google token exchange HTTP {e.code} error: {err_msg}")
+        raise RuntimeError(f"Google OAuth token exchange failed ({e.code}): {err_msg}") from e
+    except Exception as e:
+        logger.error(f"Google token exchange network error: {e}")
+        raise
 
 
 def refresh_access_token(refresh_token: str) -> Dict[str, Any]:
@@ -92,21 +109,55 @@ def refresh_access_token(refresh_token: str) -> Dict[str, Any]:
     req = urllib.request.Request(
         GOOGLE_TOKEN_URL,
         data=data,
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "MailShield-AI/2.1"
+        }
     )
     
-    with urllib.request.urlopen(req, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_msg = ""
+        try:
+            raw_err = e.read().decode("utf-8")
+            err_json = json.loads(raw_err)
+            err_msg = err_json.get("error_description") or err_json.get("error") or raw_err
+        except Exception:
+            err_msg = str(e)
+        logger.error(f"Google token refresh HTTP {e.code} error: {err_msg}")
+        raise RuntimeError(f"Google OAuth token refresh failed ({e.code}): {err_msg}") from e
+    except Exception as e:
+        logger.error(f"Google token refresh network error: {e}")
+        raise
 
 
 def get_google_user_info(access_token: str) -> Dict[str, Any]:
     """Fetches user profile information from Google."""
     req = urllib.request.Request(
         GOOGLE_USERINFO_URL,
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "User-Agent": "MailShield-AI/2.1"
+        }
     )
-    with urllib.request.urlopen(req, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_msg = ""
+        try:
+            raw_err = e.read().decode("utf-8")
+            err_json = json.loads(raw_err)
+            err_msg = err_json.get("error_description") or err_json.get("error") or raw_err
+        except Exception:
+            err_msg = str(e)
+        logger.error(f"Google userinfo fetch HTTP {e.code} error: {err_msg}")
+        raise RuntimeError(f"Google userinfo fetch failed ({e.code}): {err_msg}") from e
+    except Exception as e:
+        logger.error(f"Google userinfo network error: {e}")
+        raise
 
 
 def _clean_base64_decode(data_str: str) -> str:

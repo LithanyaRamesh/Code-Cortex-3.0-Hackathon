@@ -6,10 +6,13 @@ telemetry, safe .eml/.txt file parsing, and explainable AI insights.
 import email
 from email import policy
 import json
+import logging
 import os
 import re
 import secrets
 import uuid
+
+logger = logging.getLogger("mailshield.api")
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
@@ -423,7 +426,16 @@ def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None
         return RedirectResponse(url=f"{frontend_url}/#token={token}&gmail_connected=1")
     except Exception as e:
         logger.error(f"Google OAuth callback error: {e}")
-        return RedirectResponse(url=f"{frontend_url}/#error=oauth_exchange_failed")
+        err_str = str(e).lower()
+        if "invalid_client" in err_str or "unauthorized" in err_str:
+            err_code = "invalid_client_secret"
+        elif "redirect_uri_mismatch" in err_str:
+            err_code = "redirect_uri_mismatch"
+        elif "invalid_grant" in err_str:
+            err_code = "invalid_or_expired_code"
+        else:
+            err_code = "oauth_exchange_failed"
+        return RedirectResponse(url=f"{frontend_url}/#error={err_code}")
 
 
 @app.post("/auth/google")

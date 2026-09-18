@@ -3210,8 +3210,16 @@ window.addEventListener('DOMContentLoaded', async () => {
       if(urlParams.error === 'google_not_configured'){
         errEl.textContent = 'Google OAuth is not configured on the backend server.';
         doGoogleAuth();
+      } else if(urlParams.error === 'invalid_client_secret'){
+        errEl.textContent = 'Google OAuth Error: The GOOGLE_CLIENT_SECRET in backend/.env is invalid or does not match your Google Cloud OAuth Client.';
+      } else if(urlParams.error === 'redirect_uri_mismatch'){
+        errEl.textContent = 'Google OAuth Error: Redirect URI mismatch. Ensure http://localhost:8000/auth/google/callback is in Google Cloud Console.';
+      } else if(urlParams.error === 'invalid_or_expired_code'){
+        errEl.textContent = 'Google OAuth authorization code expired or already used. Please try clicking Continue with Google again.';
+      } else if(urlParams.error === 'access_denied'){
+        errEl.textContent = 'Google Sign-In was cancelled or access permissions were declined.';
       } else {
-        errEl.textContent = urlParams.error;
+        errEl.textContent = 'Google Sign-In error: ' + urlParams.error;
       }
     }
     window.history.replaceState(null, null, '#login');
