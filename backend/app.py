@@ -30,7 +30,8 @@ from database import (
 )
 from config import (
     get_frontend_url, get_google_redirect_uri,
-    is_google_oauth_configured, get_google_oauth_info
+    is_google_oauth_configured, get_google_oauth_info,
+    get_missing_oauth_variables, print_startup_diagnostics
 )
 from auth import (
     hash_password, verify_password, create_jwt_token, decode_jwt_token
@@ -67,12 +68,14 @@ def _load_model():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print_startup_diagnostics()
     init_db()
     _load_model()
     yield
 
 app = FastAPI(title="MailShield AI API", version="2.1.0", lifespan=lifespan)
 
+print_startup_diagnostics()
 init_db()
 try:
     _load_model()
@@ -426,11 +429,14 @@ def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None
 @app.post("/auth/google")
 def google_login(req: GoogleAuthRequest):
     if not is_google_oauth_configured():
+        missing = get_missing_oauth_variables()
+        missing_str = ", ".join(missing) if missing else "credentials"
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=(
-                "Google OAuth is not configured on this server. "
-                "Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables in your backend environment."
+                f"Google OAuth is not configured on this server. "
+                f"Missing required environment variable(s): {missing_str}. "
+                f"Please configure them in backend/.env to enable Google authentication."
             )
         )
     raise HTTPException(400, "Please use the 'Continue with Google' button to sign in directly.")
