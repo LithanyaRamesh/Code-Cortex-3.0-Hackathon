@@ -1399,47 +1399,47 @@ def _calculate_evidence_risk_score(
     components: List[RiskScoreComponent] = []
     total_score = 0
 
-    # 1. Sender Auth / Spoofing
+    # 1. Suspicious Sender
     if has_auth_headers and (dkim == "FAIL" or spf == "FAIL"):
         pts = 25
         components.append(RiskScoreComponent(
-            rule="Cryptographic Authentication Failure (SPF/DKIM spoofing)",
+            rule="Suspicious sender",
             points=pts,
-            evidence=f"DKIM: {dkim} | SPF: {spf}",
-            category="sender"
+            evidence=f"Cryptographic authentication failure (DKIM: {dkim}, SPF: {spf})",
+            category="Suspicious sender"
         ))
         total_score += pts
     elif not has_auth_headers and exec_triggers:
         pts = 15
         components.append(RiskScoreComponent(
-            rule="Executive Authority Spoofing Trigger",
+            rule="Suspicious sender",
             points=pts,
-            evidence=f"Executive titles found without verified DKIM signature ({', '.join(exec_triggers[:2])})",
-            category="sender"
+            evidence=f"Executive authority trigger without authenticated signature: '{exec_triggers[0]}'",
+            category="Suspicious sender"
         ))
         total_score += pts
 
-    # 2. Suspicious URLs
+    # 2. Suspicious URLs & Domain Mismatch
     suspicious_links = [l for l in link_items if l.status == "SUSPICIOUS"]
     warning_links = [l for l in link_items if l.status == "WARNING"]
 
     for l in suspicious_links:
         pts = 20
         components.append(RiskScoreComponent(
-            rule=f"Suspicious Phishing URL: {l.domain}",
+            rule="Suspicious URL",
             points=pts,
-            evidence="; ".join(l.reasons[:2]),
-            category="url"
+            evidence=f"{l.domain} ({'; '.join(l.reasons[:2])})",
+            category="Suspicious URL"
         ))
         total_score += pts
 
     for l in [x for x in link_items if x.has_domain_mismatch]:
         pts = 15
         components.append(RiskScoreComponent(
-            rule=f"Domain Mismatch: {l.domain}",
+            rule="Domain mismatch",
             points=pts,
-            evidence=f"Displayed as '{l.display_url}' but points to '{l.domain}'",
-            category="url"
+            evidence=f"Displayed as '{l.display_url}' but actual destination is '{l.domain}'",
+            category="Domain mismatch"
         ))
         total_score += pts
 
@@ -1447,137 +1447,134 @@ def _calculate_evidence_risk_score(
         if l not in suspicious_links:
             pts = 10
             components.append(RiskScoreComponent(
-                rule=f"URL Shortener / Insecure Link: {l.domain}",
+                rule="Suspicious URL",
                 points=pts,
-                evidence="; ".join(l.reasons[:2]),
-                category="url"
+                evidence=f"{l.domain} ({'; '.join(l.reasons[:2])})",
+                category="Suspicious URL"
             ))
             total_score += pts
 
-    # 3. Attachment Risks
+    # 3. Risky Attachments
     for a in attachment_items:
         if a.status == "HIGH_RISK":
             pts = 25
             components.append(RiskScoreComponent(
-                rule=f"High-Risk Weaponized Attachment: {a.filename}",
+                rule="Risky attachment",
                 points=pts,
-                evidence="; ".join(a.reasons[:2]),
-                category="attachment"
+                evidence=f"{a.filename} ({'; '.join(a.reasons[:2])})",
+                category="Risky attachment"
             ))
             total_score += pts
         elif a.status == "WARNING":
             pts = 15
             components.append(RiskScoreComponent(
-                rule=f"Suspicious Attachment Container: {a.filename}",
+                rule="Risky attachment",
                 points=pts,
-                evidence="; ".join(a.reasons[:2]),
-                category="attachment"
+                evidence=f"{a.filename} ({'; '.join(a.reasons[:2])})",
+                category="Risky attachment"
             ))
             total_score += pts
 
-    # 4. Credential Solicitation
+    # 4. Credential Requests & OTP
     if credential_triggers:
         pts = 15
         components.append(RiskScoreComponent(
-            rule="Credential Harvesting Phrasing",
+            rule="Credential request",
             points=pts,
-            evidence=f"Solicits password or login verification: '{credential_triggers[0]}'",
-            category="credential"
+            evidence=f"Solicits password or login credentials: '{credential_triggers[0]}'",
+            category="Credential request"
         ))
         total_score += pts
 
-    # 5. Financial & BEC Urgency
+    if otp_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Credential request",
+            points=pts,
+            evidence=f"Solicits one-time passcode (OTP): '{otp_triggers[0]}'",
+            category="Credential request"
+        ))
+        total_score += pts
+
+    # 5. Urgent Language & Financial Coercion
     if urgency_triggers and financial_triggers:
         pts = 25
         components.append(RiskScoreComponent(
-            rule="Business Email Compromise (Urgency + Wire Transfer)",
+            rule="Urgent language",
             points=pts,
-            evidence=f"Urgency '{urgency_triggers[0]}' combined with wire/payment '{financial_triggers[0]}'",
-            category="financial"
+            evidence=f"Urgency pressure '{urgency_triggers[0]}' combined with financial payment '{financial_triggers[0]}'",
+            category="Urgent language"
+        ))
+        total_score += pts
+    elif urgency_triggers:
+        pts = 10
+        components.append(RiskScoreComponent(
+            rule="Urgent language",
+            points=pts,
+            evidence=f"Time-sensitive coercive deadline: '{urgency_triggers[0]}'",
+            category="Urgent language"
         ))
         total_score += pts
     elif financial_triggers:
         pts = 15
         components.append(RiskScoreComponent(
-            rule="Financial Payment / Routing Request",
+            rule="Urgent language",
             points=pts,
-            evidence=f"Financial routing keyword: '{financial_triggers[0]}'",
-            category="financial"
-        ))
-        total_score += pts
-    elif urgency_triggers and prob_spam > 0.4:
-        pts = 10
-        components.append(RiskScoreComponent(
-            rule="Coercive Urgency Pressure",
-            points=pts,
-            evidence=f"Urgency deadline: '{urgency_triggers[0]}'",
-            category="financial"
+            evidence=f"Unverified financial payment request: '{financial_triggers[0]}'",
+            category="Urgent language"
         ))
         total_score += pts
 
-    # 6. OTP Interception
-    if otp_triggers:
-        pts = 15
-        components.append(RiskScoreComponent(
-            rule="2FA / OTP Passcode Solicitation",
-            points=pts,
-            evidence=f"Requests one-time passcode: '{otp_triggers[0]}'",
-            category="credential"
-        ))
-        total_score += pts
-
-    # 7. Sensitive Info Solicitation
+    # 6. Sensitive Information
     if sensitive_triggers:
         pts = 15
         components.append(RiskScoreComponent(
-            rule="Confidential Information Exfiltration Request",
+            rule="Credential request",
             points=pts,
-            evidence=f"Solicits sensitive personal or tax records: '{sensitive_triggers[0]}'",
-            category="financial"
+            evidence=f"Solicits confidential data: '{sensitive_triggers[0]}'",
+            category="Credential request"
         ))
         total_score += pts
 
-    # 8. ML Model Semantic Score fallback
+    # 7. ML Model Semantic Score fallback
     if prob_spam >= 0.70 and not components:
         pts = 25
         components.append(RiskScoreComponent(
-            rule="Machine Learning Semantic Anomaly",
+            rule="Suspicious email patterns",
             points=pts,
-            evidence=f"NLP classifier scored {prob_spam*100:.1f}% phishing pattern confidence",
-            category="ml_model"
+            evidence=f"NLP neural model scored {prob_spam*100:.1f}% phishing pattern confidence",
+            category="Suspicious pattern"
         ))
         total_score += pts
     elif prob_spam >= 0.50 and not components:
         pts = 15
         components.append(RiskScoreComponent(
-            rule="Machine Learning Elevated Anomaly",
+            rule="Suspicious email patterns",
             points=pts,
-            evidence=f"NLP classifier detected suspicious spam phrasing ({prob_spam*100:.1f}%)",
-            category="ml_model"
+            evidence=f"NLP neural model detected suspicious spam phrasing ({prob_spam*100:.1f}%)",
+            category="Suspicious pattern"
         ))
         total_score += pts
 
     # If verified clean
     if not components:
-        pts = 10 if prob_spam > 0.3 else 5
+        pts = 0
         components.append(RiskScoreComponent(
-            rule="Verified Legitimate Communication",
-            points=pts,
-            evidence=f"Message cleared cryptographic, domain, URL, and semantic threat filters ({(1-prob_spam)*100:.1f}% clean)",
-            category="auth"
+            rule="Verified clean email",
+            points=0,
+            evidence=f"Message cleared cryptographic, domain, URL, and heuristic threat filters ({(1-prob_spam)*100:.1f}% clean)",
+            category="Clean"
         ))
-        total_score = pts
+        total_score = 0
 
     final_score = min(100, max(0, total_score))
 
-    if final_score >= 75:
-        level = "CRITICAL"
-    elif final_score >= 50:
-        level = "HIGH"
+    if final_score >= 60:
+        level = "High"
     elif final_score >= 30:
-        level = "ELEVATED"
+        level = "Medium"
     else:
-        level = "LOW"
+        level = "Low"
 
     return EvidenceRiskScore(
         score=final_score,

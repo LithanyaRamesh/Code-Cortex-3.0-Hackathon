@@ -988,18 +988,18 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 
       <div id="verdictBanner" class="verdict-banner"></div>
 
-      <!-- EVIDENCE-BASED RISK SCORE -->
+      <!-- RISK SCORE & EVIDENCE -->
       <div class="card risk-score-card" style="margin-top:16px;" id="riskScoreCard">
         <div class="risk-score-head">
           <div>
             <div class="risk-score-title">
-              <span>📊 Evidence-Based Risk Score</span>
-              <span class="badge" id="riskScoreBadge">0/100</span>
+              <span>📊 Risk Score &amp; Evidence</span>
+              <span class="badge" id="riskScoreBadge">0/100 • Low Risk</span>
             </div>
-            <p class="sub" style="margin-bottom:0;" id="riskScoreSummary">Calculated additively from actual detected indicators in email payload.</p>
+            <p class="sub" style="margin-bottom:0;" id="riskScoreSummary">0–100 threat assessment calculated from actual email evidence &amp; detected threat indicators.</p>
           </div>
           <div style="text-align:right;">
-            <span class="sub" style="font-size:11px; text-transform:uppercase; letter-spacing:.05em;">COMPUTED RISK SCORE</span>
+            <span class="sub" style="font-size:11px; text-transform:uppercase; letter-spacing:.05em;">RISK SCORE</span>
             <div id="riskScoreNumber" style="font-size:24px; font-weight:900; color:var(--green);">0 / 100</div>
           </div>
         </div>
@@ -3398,8 +3398,10 @@ function renderEvidenceRiskScore(riskScore){
   if(card) card.style.display = 'block';
 
   const score = Math.min(100, Math.max(0, Math.round(riskScore.score)));
-  const isSafe = score <= 25;
-  const isHigh = score > 65;
+  const isSafe = score < 30;
+  const isMedium = score >= 30 && score < 60;
+  const isHigh = score >= 60;
+  const riskLabel = isHigh ? 'High Risk' : (isMedium ? 'Medium Risk' : 'Low Risk');
   const color = isSafe ? 'var(--green)' : (isHigh ? 'var(--red)' : 'var(--amber)');
   const badgeCls = isSafe ? 'low' : (isHigh ? 'crit' : 'high');
 
@@ -3412,7 +3414,7 @@ function renderEvidenceRiskScore(riskScore){
     numEl.style.color = color;
   }
   if(badgeEl){
-    badgeEl.textContent = `${score}/100 • ${riskScore.level || (isSafe ? 'Low Risk' : (isHigh ? 'High Risk' : 'Medium Risk'))}`;
+    badgeEl.textContent = `${score}/100 • ${riskLabel}`;
     badgeEl.className = `badge ${badgeCls}`;
   }
   if(fillEl){
@@ -3420,34 +3422,41 @@ function renderEvidenceRiskScore(riskScore){
     fillEl.style.background = isSafe ? 'var(--green)' : (isHigh ? 'linear-gradient(90deg, var(--amber), var(--red))' : 'linear-gradient(90deg, var(--cyan), var(--amber))');
   }
   if(summaryEl){
-    summaryEl.textContent = riskScore.explanation || 'Calculated additively from actual detected indicators in email payload.';
+    summaryEl.textContent = isSafe
+      ? 'No suspicious or malicious indicators detected in analyzed email (Low Risk).'
+      : `Email evaluated with threat score of ${score}/100 (${riskLabel}) based on detected risk indicators.`;
   }
 
   if(listEl){
     const components = riskScore.components || [];
-    if(!components.length){
+    const activeComponents = components.filter(c => c.points > 0 || c.rule !== 'Verified clean email');
+    if(!activeComponents.length){
       listEl.innerHTML = `
         <div class="score-component-row">
           <div>
             <b style="font-size:12.5px; color:var(--green);">✓ Clean Baseline</b>
-            <p style="font-size:11.5px; color:var(--sub); margin-top:2px;">No malicious or suspicious indicators detected. Baseline calculated at 0 / 100.</p>
+            <p style="font-size:11.5px; color:var(--sub); margin-top:2px;">No risk indicators detected. Message cleared all heuristic, link, sender, and payload security checks (0/100).</p>
           </div>
           <span class="score-pts-pill clean">0 pts</span>
         </div>
       `;
     } else {
-      listEl.innerHTML = components.map(c => `
-        <div class="score-component-row">
-          <div style="flex:1;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <b style="font-size:12.5px; color:var(--text);">${escapeHtml(c.category)}</b>
-              ${c.evidence ? `<span style="font-size:10.5px; color:var(--sub); font-family:monospace;">[${escapeHtml(c.evidence)}]</span>` : ''}
+      listEl.innerHTML = activeComponents.map(c => {
+        const itemTitle = c.rule || c.category || 'Threat Indicator';
+        const itemEvidence = c.evidence || c.description || '';
+        return `
+          <div class="score-component-row">
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="color:${color}; font-size:13px;">⚠️</span>
+                <b style="font-size:13px; color:var(--text);">${escapeHtml(itemTitle)}</b>
+              </div>
+              <p style="font-size:12px; color:#cbd5e1; margin-top:3px; line-height:1.4;">${escapeHtml(itemEvidence)}</p>
             </div>
-            <p style="font-size:11.5px; color:var(--sub); margin-top:2px;">${escapeHtml(c.description)}</p>
+            <span class="score-pts-pill">+${c.points} pts</span>
           </div>
-          <span class="score-pts-pill">+${c.points} pts</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   }
 }
