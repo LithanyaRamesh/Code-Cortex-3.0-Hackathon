@@ -1,0 +1,28 @@
+{
+  "raw_dataset_rows": 5728,
+  "duplicates_removed": 33,
+  "dataset_rows": 5695,
+  "spam_rows": 1368,
+  "legitimate_rows": 4327,
+  "train_rows": 4556,
+  "test_rows": 1139,
+  "split": "80/20 stratified",
+  "spam_ratio": 0.2402,
+  "accuracy": 0.9851,
+  "precision": 1.0,
+  "recall": 0.938,
+  "f1_score": 0.968,
+  "roc_auc": 0.9996,
+  "confusion_matrix": [
+    [
+      864,
+      1
+    ],
+    [
+      17,
+      257
+    ]
+  ],
+  "model": "TF-IDF + Logistic Regression",
+  "dataset_name": "MailShield AI Labeled Corpus"
+}
