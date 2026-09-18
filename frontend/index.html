@@ -193,10 +193,10 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .switch.on::after{left:21px;}
 
 /* MODAL */
-.modal-overlay{position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(4,7,15,.75); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:9999;}
-.modal-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; max-width:480px; width:90%; padding:26px; box-shadow:0 20px 40px rgba(0,0,0,.6);}
+.modal-overlay{position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(4,7,15,.78); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999;}
+.modal-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; max-width:560px; width:92%; padding:26px; box-shadow:0 20px 40px rgba(0,0,0,.6);}
 .modal-card h3{font-size:17px; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
-.modal-card p{color:var(--sub); font-size:13px; line-height:1.5; margin-bottom:20px;}
+.modal-card p{color:var(--sub); font-size:13px; line-height:1.5; margin-bottom:14px;}
 .empty-state{text-align:center; padding:36px 20px; color:var(--sub);}
 .empty-state-icon{font-size:32px; margin-bottom:10px; opacity:.7;}
 
@@ -262,12 +262,17 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 </div>
 
 <!-- GOOGLE OAUTH MODAL (When not configured) -->
-<div id="googleModal" class="modal-overlay hidden">
+<div id="googleModal" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
   <div class="modal-card">
-    <h3><span style="font-size:20px">⚙️</span> Google OAuth Configuration</h3>
-    <p id="googleModalMsg">Google OAuth is not configured on this server. To enable Google Sign-In, please set the <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> environment variables in your backend environment.</p>
-    <div style="display:flex; justify-content:flex-end;">
-      <button class="btn-primary" onclick="document.getElementById('googleModal').classList.add('hidden')">Understood</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:12px;">
+      <h3 style="margin-bottom:0; font-size:16px;"><span style="font-size:18px">⚙️</span> Google OAuth Configuration</h3>
+      <button class="logout-btn" style="font-size:16px;" onclick="document.getElementById('googleModal').classList.add('hidden')">✕</button>
+    </div>
+    <div id="googleModalMsg">
+      <p>Google OAuth credentials are not configured on this server.</p>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+      <button class="btn-primary" onclick="document.getElementById('googleModal').classList.add('hidden')">Got It</button>
     </div>
   </div>
 </div>
@@ -742,17 +747,56 @@ async function handleAuthSubmit(){
 }
 
 async function doGoogleAuth(){
+  const btn = document.querySelector('.btn-google');
+  const originalText = btn ? btn.innerHTML : 'Continue with Google';
+  if(btn){
+    btn.innerHTML = '<span style="font-size:13px">⏳</span> Connecting to Google OAuth...';
+    btn.style.opacity = '0.75';
+    btn.style.pointerEvents = 'none';
+  }
+
   try{
     const res = await fetch(API_BASE + '/auth/google/status');
     const data = await res.json();
     if(data.configured && data.client_id){
-      alert('Google OAuth configured. Redirecting to Google Authentication...');
+      // Google OAuth is configured - redirect to Google OAuth login route
+      window.location.href = API_BASE + '/auth/google/login';
     } else {
-      document.getElementById('googleModalMsg').textContent = data.message || 'Google OAuth is not configured on this server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.';
+      if(btn){
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+      }
+      document.getElementById('googleModalMsg').innerHTML = `
+        <p style="margin-bottom:12px;color:#c8ccdb;font-size:13px;line-height:1.5;">
+          Google OAuth is not configured on this server. To enable one-click Google Sign-In, please set the required credentials in <code>backend/.env</code>:
+        </p>
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--cyan);white-space:pre-wrap;margin-bottom:14px;line-height:1.6;">GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com\nGOOGLE_CLIENT_SECRET=your_client_secret\nGOOGLE_REDIRECT_URI=${data.redirect_uri || 'http://localhost:8000/auth/google/callback'}\nFRONTEND_URL=${data.frontend_url || 'http://localhost:3000'}</div>
+        <div style="font-size:12px;color:var(--sub);line-height:1.6;">
+          <b style="color:var(--text);display:block;margin-bottom:4px;">Quick Google Cloud Setup:</b>
+          <ol style="margin-left:18px;">
+            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="link">Google Cloud Console → Credentials</a></li>
+            <li>Create an <b>OAuth 2.0 Client ID</b> for <b>Web application</b></li>
+            <li>Add Authorized JavaScript origin: <code>${data.frontend_url || 'http://localhost:3000'}</code></li>
+            <li>Add Authorized redirect URI: <code>${data.redirect_uri || 'http://localhost:8000/auth/google/callback'}</code></li>
+            <li>Save credentials in <code>backend/.env</code> and restart the backend.</li>
+          </ol>
+        </div>
+      `;
       document.getElementById('googleModal').classList.remove('hidden');
     }
   } catch(e){
-    document.getElementById('googleModalMsg').textContent = 'Cannot reach backend to check Google OAuth configuration. Please ensure backend is running.';
+    if(btn){
+      btn.innerHTML = originalText;
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
+    document.getElementById('googleModalMsg').innerHTML = `
+      <p style="color:var(--red);font-size:13px;line-height:1.5;">
+        Cannot connect to the MailShield backend server at <code>${API_BASE}</code>.<br>
+        Please ensure the backend server is running.
+      </p>
+    `;
     document.getElementById('googleModal').classList.remove('hidden');
   }
 }
@@ -792,8 +836,34 @@ function initAppSession(user){
 }
 
 // --- ROUTING & ROUTE PROTECTION ---
+function parseUrlParams(){
+  const params = {};
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+
+  const parseString = (str) => {
+    if(!str) return;
+    const clean = str.replace(/^[#?]/, '');
+    const pairs = clean.split('&');
+    for(const pair of pairs){
+      if(!pair) continue;
+      const [k, v] = pair.split('=');
+      if(k && v !== undefined){
+        params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+      } else if(k){
+        params[decodeURIComponent(k)] = true;
+      }
+    }
+  };
+
+  parseString(search);
+  parseString(hash);
+  return params;
+}
+
 function navigate(targetRoute){
-  const cleanRoute = (targetRoute || '').replace(/^#\/?/, '').toLowerCase() || 'dashboard';
+  const rawTarget = (targetRoute || '').replace(/^#\/?/, '');
+  const cleanRoute = (rawTarget.split('&')[0] || 'dashboard').toLowerCase();
 
   // Check authentication status
   const token = localStorage.getItem('mailshield_token');
@@ -869,6 +939,9 @@ function showAppPage(pageName){
 // Handle browser Back / Forward buttons & Hash Changes
 window.addEventListener('hashchange', () => {
   const hash = window.location.hash.replace(/^#\/?/, '');
+  if(hash.startsWith('auth_success')){
+    return;
+  }
   navigate(hash);
 });
 
@@ -1188,19 +1261,63 @@ function escapeHtml(str){
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
-// --- INITIALIZATION (STARTUP ROUTING) ---
+// --- INITIALIZATION (STARTUP ROUTING & OAUTH HANDLER) ---
 window.addEventListener('DOMContentLoaded', async () => {
   renderSamples();
-  const token = localStorage.getItem('mailshield_token');
-  const currentHash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
 
-  if(token){
+  const urlParams = parseUrlParams();
+  const rawHash = window.location.hash || '';
+  const currentHash = rawHash.replace(/^#\/?/, '').split('&')[0].toLowerCase();
+
+  // 1. Check for OAuth errors (e.g. redirected from Google OAuth failure)
+  if(urlParams.error){
+    currentUser = null;
+    localStorage.removeItem('mailshield_token');
+    localStorage.removeItem('mailshield_user');
+    showAuthScreen('signin');
+    const errEl = document.getElementById('loginErr');
+    if(errEl){
+      if(urlParams.error === 'google_not_configured'){
+        errEl.textContent = 'Google OAuth is not configured on the backend server.';
+        doGoogleAuth();
+      } else {
+        errEl.textContent = urlParams.error;
+      }
+    }
+    window.history.replaceState(null, null, '#login');
+    return;
+  }
+
+  // 2. Check for OAuth callback token
+  const oauthToken = urlParams.token;
+  if(oauthToken){
+    localStorage.setItem('mailshield_token', oauthToken);
     try{
-      const res = await fetch(API_BASE + '/auth/me', {headers: {'Authorization': 'Bearer ' + token}});
+      const res = await fetch(API_BASE + '/auth/me', {
+        headers: {'Authorization': 'Bearer ' + oauthToken}
+      });
       if(res.ok){
         const user = await res.json();
+        localStorage.setItem('mailshield_user', JSON.stringify(user));
         initAppSession(user);
-        // If hash was login/register or empty, default to dashboard, otherwise retain requested page
+        window.history.replaceState(null, null, '#dashboard');
+        navigate('dashboard');
+        return;
+      }
+    } catch(e){
+      console.warn("Google OAuth token verification failed:", e);
+    }
+  }
+
+  // 3. Check for existing session token in localStorage
+  const existingToken = localStorage.getItem('mailshield_token');
+  if(existingToken){
+    try{
+      const res = await fetch(API_BASE + '/auth/me', {headers: {'Authorization': 'Bearer ' + existingToken}});
+      if(res.ok){
+        const user = await res.json();
+        localStorage.setItem('mailshield_user', JSON.stringify(user));
+        initAppSession(user);
         const destination = (currentHash === 'login' || currentHash === 'register' || !currentHash) ? 'dashboard' : currentHash;
         navigate(destination);
         return;
@@ -1208,12 +1325,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     } catch(e){
       // Session expired or unreachable
     }
-    // If token invalid, clear it
     localStorage.removeItem('mailshield_token');
     localStorage.removeItem('mailshield_user');
   }
 
-  // Not authenticated: Open FIRST page as Login page
+  // 4. Not authenticated: Open FIRST page as Login page
   currentUser = null;
   const initialAuthMode = currentHash === 'register' ? 'register' : 'signin';
   showAuthScreen(initialAuthMode);
