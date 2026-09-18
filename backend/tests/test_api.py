@@ -182,3 +182,61 @@ def test_history_and_stats():
     assert "legitimate_count" in stats
     assert "avg_confidence" in stats
     assert "daily_volume" in stats
+
+
+def test_feedback_and_learning_cycle():
+    # 1. Analyze an email
+    scan = client.post("/predict", json={
+        "subject": "System access verification notice",
+        "body": "Please confirm your security preferences for quarterly update."
+    }).json()
+    scan_id = scan["scan_id"]
+    assert "evidence_items" in scan
+
+    # 2. Submit feedback "Actually Safe"
+    fb_resp = client.post("/feedback", json={
+        "scan_id": scan_id,
+        "actual_label": "SAFE",
+        "original_verdict": scan["verdict"],
+        "subject_snippet": "System access verification notice",
+        "comments": "Internal routine check"
+    })
+    assert fb_resp.status_code == 200
+    assert fb_resp.json()["success"] is True
+
+    # 3. Check feedback stats
+    stats_resp = client.get("/feedback/stats")
+    assert stats_resp.status_code == 200
+    assert stats_resp.json()["total_feedback"] >= 1
+
+
+def test_intelligence_and_alerts():
+    # Intelligence endpoint
+    intel_resp = client.get("/intelligence")
+    assert intel_resp.status_code == 200
+    intel = intel_resp.json()
+    assert "security_score" in intel
+    assert "feedback_stats" in intel
+    assert "attack_vectors" in intel
+
+    # Alerts endpoint
+    alerts_resp = client.get("/alerts")
+    assert alerts_resp.status_code == 200
+    alerts = alerts_resp.json()
+    assert isinstance(alerts, list)
+
+
+def test_delete_scan_and_purge():
+    # Create a scan
+    scan = client.post("/analyze", json={"subject": "Test to delete", "body": "Clean text for deletion test."}).json()
+    scan_id = scan["scan_id"]
+
+    # Delete single scan
+    del_resp = client.delete(f"/history/{scan_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["success"] is True
+
+    # Verify 404 on re-fetch
+    fetch_resp = client.get(f"/history/{scan_id}")
+    assert fetch_resp.status_code == 404
+
