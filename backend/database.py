@@ -33,6 +33,18 @@ def init_db():
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL COLLATE NOCASE,
+        reset_code TEXT NOT NULL,
+        reset_token TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS scans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -115,6 +127,73 @@ def create_user(email: str, full_name: str, password_hash: str, salt: str, auth_
             "auth_provider": auth_provider,
             "created_at": now
         }
+    finally:
+        conn.close()
+
+
+def update_user_password(email: str, password_hash: str, salt: str) -> bool:
+    """Updates the password hash and salt for an existing user account."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "UPDATE users SET password_hash = ?, salt = ? WHERE email = ? COLLATE NOCASE",
+            (password_hash, salt, email.strip().lower())
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def save_password_reset(email: str, reset_code: str, reset_token: str, expires_at: str) -> Dict[str, Any]:
+    """Records an issued password reset code and token."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    try:
+        cur.execute(
+            "INSERT INTO password_resets (email, reset_code, reset_token, expires_at, used, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+            (email.strip().lower(), reset_code.strip(), reset_token.strip(), expires_at, now)
+        )
+        conn.commit()
+        reset_id = cur.lastrowid
+        return {
+            "id": reset_id,
+            "email": email.strip().lower(),
+            "reset_code": reset_code.strip(),
+            "reset_token": reset_token.strip(),
+            "expires_at": expires_at,
+            "used": 0,
+            "created_at": now
+        }
+    finally:
+        conn.close()
+
+
+def verify_and_consume_password_reset(email: str, reset_code: str) -> bool:
+    """Verifies that an unexpired, unused reset code exists for the email and marks it as used."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    try:
+        cur.execute(
+            "SELECT id, expires_at FROM password_resets WHERE email = ? COLLATE NOCASE AND reset_code = ? AND used = 0 ORDER BY id DESC LIMIT 1",
+            (email.strip().lower(), reset_code.strip())
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+        
+        # Check expiration
+        expires_at = row["expires_at"]
+        if expires_at < now:
+            return False
+        
+        # Mark as used
+        cur.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
+        conn.commit()
+        return True
     finally:
         conn.close()
 

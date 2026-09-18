@@ -299,3 +299,99 @@ def test_containment_assessment():
         assert len(d["containment_playbook"]["containment_steps"]) >= 3
         assert "incident_events" in d
 
+
+def test_forgot_password_user_not_found():
+    res = client.post("/auth/forgot-password", json={"email": "nonexistent.user.2026@mailshield.ai"})
+    assert res.status_code == 404
+    assert "No registered account found" in res.json()["detail"]
+
+
+def test_forgot_password_and_reset_flow_success():
+    test_email = "analyst.reset.test@mailshield.ai"
+    test_name = "Alex Analyst"
+    orig_pwd = "OriginalPassword123"
+    new_pwd = "NewSecurePassword456!"
+
+    # 1. Register user
+    reg_res = client.post("/auth/register", json={
+        "full_name": test_name,
+        "email": test_email,
+        "password": orig_pwd
+    })
+    assert reg_res.status_code == 200
+
+    # 2. Login with original password works
+    login_orig = client.post("/auth/login", json={"email": test_email, "password": orig_pwd})
+    assert login_orig.status_code == 200
+    assert "token" in login_orig.json()
+
+    # 3. Request forgot password reset code
+    forgot_res = client.post("/auth/forgot-password", json={"email": test_email})
+    assert forgot_res.status_code == 200
+    forgot_data = forgot_res.json()
+    assert forgot_data["status"] == "success"
+    assert "reset_code" in forgot_data
+    assert len(forgot_data["reset_code"]) == 6
+    reset_code = forgot_data["reset_code"]
+
+    # 4. Perform password reset with code
+    reset_res = client.post("/auth/reset-password", json={
+        "email": test_email,
+        "reset_code": reset_code,
+        "new_password": new_pwd
+    })
+    assert reset_res.status_code == 200
+    assert reset_res.json()["status"] == "success"
+
+    # 5. Login with old password fails
+    login_old = client.post("/auth/login", json={"email": test_email, "password": orig_pwd})
+    assert login_old.status_code == 401
+
+    # 6. Login with new password succeeds
+    login_new = client.post("/auth/login", json={"email": test_email, "password": new_pwd})
+    assert login_new.status_code == 200
+    assert login_new.json()["user"]["email"] == test_email
+
+
+def test_reset_password_invalid_code_rejected():
+    test_email = "analyst.code.check@mailshield.ai"
+    client.post("/auth/register", json={
+        "full_name": "Test Code User",
+        "email": test_email,
+        "password": "ValidPassword123"
+    })
+
+    # Request code
+    client.post("/auth/forgot-password", json={"email": test_email})
+
+    # Submit invalid code
+    bad_res = client.post("/auth/reset-password", json={
+        "email": test_email,
+        "reset_code": "000000",
+        "new_password": "AnotherNewPassword123"
+    })
+    assert bad_res.status_code == 400
+    assert "Invalid or expired verification code" in bad_res.json()["detail"]
+
+
+def test_reset_password_short_password_rejected():
+    test_email = "analyst.short.pwd@mailshield.ai"
+    client.post("/auth/register", json={
+        "full_name": "Short Pwd User",
+        "email": test_email,
+        "password": "ValidPassword123"
+    })
+
+    forgot_res = client.post("/auth/forgot-password", json={"email": test_email})
+    reset_code = forgot_res.json()["reset_code"]
+
+    # Submit too short password
+    short_res = client.post("/auth/reset-password", json={
+        "email": test_email,
+        "reset_code": reset_code,
+        "new_password": "123"
+    })
+    assert short_res.status_code == 400
+    assert "at least 6 characters" in short_res.json()["detail"]
+
+

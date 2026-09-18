@@ -354,7 +354,7 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
     </div>
     
     <div class="login-right">
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabsBar">
         <div class="auth-tab active" id="tabSignIn" onclick="switchAuthMode('signin')">Sign In</div>
         <div class="auth-tab" id="tabRegister" onclick="switchAuthMode('register')">Create Account</div>
       </div>
@@ -370,21 +370,42 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         <input id="regFullName" placeholder="Alex Mercer" autocomplete="name">
       </div>
 
-      <!-- Email & Password Fields -->
-      <div class="field">
+      <!-- Email Field -->
+      <div class="field" id="fieldEmail">
         <label>Work Email Address</label>
-        <input id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email">
+        <div style="display:flex;gap:8px;">
+          <input id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email" style="flex:1;">
+          <button type="button" id="btnSendResetCode" class="btn-secondary hidden" style="padding:0 12px;font-size:12px;white-space:nowrap;" onclick="handleSendResetCode()">Get Code</button>
+        </div>
       </div>
-      <div class="field">
-        <label class="row-between">Password <a class="link" onclick="alert('Password reset instructions will be sent to your registered email.')">Forgot password?</a></label>
+
+      <!-- Reset Code Field (Visible only in forgot password mode) -->
+      <div class="field hidden" id="fieldResetCode">
+        <label class="row-between"><span>6-Digit Verification Code</span><span id="resetCodeHint" style="font-size:11px;color:var(--cyan);font-weight:600;"></span></label>
+        <input id="resetCodeInput" type="text" placeholder="e.g. 849201" maxlength="6" autocomplete="one-time-code" style="letter-spacing:2px;font-weight:700;">
+      </div>
+
+      <!-- Password Field (Sign In / Register) -->
+      <div class="field" id="fieldPassword">
+        <label class="row-between"><span>Password</span> <a class="link" onclick="switchAuthMode('forgot')">Forgot password?</a></label>
         <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <!-- New Password Field (Visible only in forgot password mode) -->
+      <div class="field hidden" id="fieldNewPassword">
+        <label>New Password (Min 6 characters)</label>
+        <input id="resetNewPass" type="password" placeholder="••••••••" autocomplete="new-password">
       </div>
 
       <button class="btn-grad" id="btnSubmitAuth" onclick="handleAuthSubmit()">Sign In to Dashboard →</button>
 
-      <div class="divider">or continue with</div>
+      <div id="forgotBackLink" class="hidden" style="text-align:center;margin-top:12px;">
+        <a class="link" style="font-size:12.5px;cursor:pointer;" onclick="switchAuthMode('signin')">← Back to Sign In</a>
+      </div>
 
-      <button class="btn-google" onclick="doGoogleAuth()">
+      <div id="authSocialDivider" class="divider">or continue with</div>
+
+      <button id="btnGoogleAuth" class="btn-google" onclick="doGoogleAuth()">
         <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.2-2 .4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
         Continue with Google
       </button>
@@ -1189,22 +1210,120 @@ function clearUploadedFile(){
 // --- AUTHENTICATION & FLOWS ---
 function switchAuthMode(mode){
   authMode = mode;
-  document.getElementById('loginErr').textContent = '';
-  document.getElementById('loginOk').textContent = '';
+  const errEl = document.getElementById('loginErr');
+  const okEl = document.getElementById('loginOk');
+  if(errEl) errEl.textContent = '';
+  if(okEl) okEl.textContent = '';
+
+  const tabSignIn = document.getElementById('tabSignIn');
+  const tabRegister = document.getElementById('tabRegister');
+  const authTabsBar = document.getElementById('authTabsBar');
+  const fieldFullName = document.getElementById('fieldFullName');
+  const fieldEmail = document.getElementById('fieldEmail');
+  const btnSendResetCode = document.getElementById('btnSendResetCode');
+  const fieldResetCode = document.getElementById('fieldResetCode');
+  const resetCodeHint = document.getElementById('resetCodeHint');
+  const fieldPassword = document.getElementById('fieldPassword');
+  const fieldNewPassword = document.getElementById('fieldNewPassword');
+  const btnSubmitAuth = document.getElementById('btnSubmitAuth');
+  const forgotBackLink = document.getElementById('forgotBackLink');
+  const authSocialDivider = document.getElementById('authSocialDivider');
+  const btnGoogleAuth = document.getElementById('btnGoogleAuth');
+  const authHeader = document.getElementById('authHeader');
+
   if(mode === 'register'){
-    document.getElementById('tabRegister').classList.add('active');
-    document.getElementById('tabSignIn').classList.remove('active');
-    document.getElementById('fieldFullName').classList.remove('hidden');
-    document.getElementById('authHeader').innerHTML = '<h2>Create SOC Account</h2><p>Register with your name, work email, and secure password.</p>';
-    document.getElementById('btnSubmitAuth').textContent = 'Create Protected Account →';
+    if(authTabsBar) authTabsBar.classList.remove('hidden');
+    if(tabRegister) tabRegister.classList.add('active');
+    if(tabSignIn) tabSignIn.classList.remove('active');
+    if(fieldFullName) fieldFullName.classList.remove('hidden');
+    if(btnSendResetCode) btnSendResetCode.classList.add('hidden');
+    if(fieldResetCode) fieldResetCode.classList.add('hidden');
+    if(fieldPassword) fieldPassword.classList.remove('hidden');
+    if(fieldNewPassword) fieldNewPassword.classList.add('hidden');
+    if(forgotBackLink) forgotBackLink.classList.add('hidden');
+    if(authSocialDivider) authSocialDivider.classList.remove('hidden');
+    if(btnGoogleAuth) btnGoogleAuth.classList.remove('hidden');
+    if(authHeader) authHeader.innerHTML = '<h2>Create SOC Account</h2><p>Register with your name, work email, and secure password.</p>';
+    if(btnSubmitAuth) btnSubmitAuth.textContent = 'Create Protected Account →';
     window.location.hash = '#register';
+  } else if(mode === 'forgot'){
+    if(authTabsBar) authTabsBar.classList.add('hidden');
+    if(fieldFullName) fieldFullName.classList.add('hidden');
+    if(btnSendResetCode) btnSendResetCode.classList.remove('hidden');
+    if(fieldResetCode) fieldResetCode.classList.remove('hidden');
+    if(fieldPassword) fieldPassword.classList.add('hidden');
+    if(fieldNewPassword) fieldNewPassword.classList.remove('hidden');
+    if(forgotBackLink) forgotBackLink.classList.remove('hidden');
+    if(authSocialDivider) authSocialDivider.classList.add('hidden');
+    if(btnGoogleAuth) btnGoogleAuth.classList.add('hidden');
+    if(authHeader) authHeader.innerHTML = '<h2>Reset Account Password</h2><p>Verify your email and set a new secure password.</p>';
+    if(btnSubmitAuth) btnSubmitAuth.textContent = 'Update Password & Sign In →';
+    if(resetCodeHint) resetCodeHint.textContent = '';
+    window.location.hash = '#forgot';
   } else {
-    document.getElementById('tabSignIn').classList.add('active');
-    document.getElementById('tabRegister').classList.remove('active');
-    document.getElementById('fieldFullName').classList.add('hidden');
-    document.getElementById('authHeader').innerHTML = '<h2>Sign In to Portal</h2><p>Enter your credentials to access MailShield AI.</p>';
-    document.getElementById('btnSubmitAuth').textContent = 'Sign In to Dashboard →';
+    // signin
+    if(authTabsBar) authTabsBar.classList.remove('hidden');
+    if(tabSignIn) tabSignIn.classList.add('active');
+    if(tabRegister) tabRegister.classList.remove('active');
+    if(fieldFullName) fieldFullName.classList.add('hidden');
+    if(btnSendResetCode) btnSendResetCode.classList.add('hidden');
+    if(fieldResetCode) fieldResetCode.classList.add('hidden');
+    if(fieldPassword) fieldPassword.classList.remove('hidden');
+    if(fieldNewPassword) fieldNewPassword.classList.add('hidden');
+    if(forgotBackLink) forgotBackLink.classList.add('hidden');
+    if(authSocialDivider) authSocialDivider.classList.remove('hidden');
+    if(btnGoogleAuth) btnGoogleAuth.classList.remove('hidden');
+    if(authHeader) authHeader.innerHTML = '<h2>Sign In to Portal</h2><p>Enter your credentials to access MailShield AI.</p>';
+    if(btnSubmitAuth) btnSubmitAuth.textContent = 'Sign In to Dashboard →';
     window.location.hash = '#login';
+  }
+}
+
+async function handleSendResetCode(){
+  const errEl = document.getElementById('loginErr');
+  const okEl = document.getElementById('loginOk');
+  const resetCodeHint = document.getElementById('resetCodeHint');
+  const codeInput = document.getElementById('resetCodeInput');
+  const btn = document.getElementById('btnSendResetCode');
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email || !email.includes('@') || !email.includes('.')){
+    errEl.textContent = 'Please enter your registered email address first.';
+    return;
+  }
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+  }
+
+  try{
+    const res = await fetch(API_BASE + '/auth/forgot-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email})
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errEl.textContent = data.detail || 'Could not find an account with this email.';
+      return;
+    }
+
+    if(data.reset_code && codeInput){
+      codeInput.value = data.reset_code;
+      if(resetCodeHint) resetCodeHint.textContent = `Code: ${data.reset_code}`;
+    }
+    okEl.textContent = `✓ Verification code generated (${data.reset_code || 'sent'}). Enter your new password below.`;
+    showToast(`Verification code generated: ${data.reset_code || 'Check email'}`);
+  } catch(e){
+    errEl.textContent = 'Unable to connect to backend server at ' + API_BASE;
+  } finally {
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Resend Code';
+    }
   }
 }
 
@@ -1215,6 +1334,58 @@ async function handleAuthSubmit(){
   okEl.textContent = '';
 
   const email = document.getElementById('loginEmail').value.trim();
+
+  if(authMode === 'forgot'){
+    let resetCode = document.getElementById('resetCodeInput').value.trim();
+    const newPassword = document.getElementById('resetNewPass').value;
+
+    if(!email || !email.includes('@') || !email.includes('.')){
+      errEl.textContent = 'Please enter your registered email address.';
+      return;
+    }
+
+    if(!resetCode){
+      // Automatically request reset code if not already filled
+      await handleSendResetCode();
+      resetCode = document.getElementById('resetCodeInput').value.trim();
+      if(!resetCode) return;
+    }
+
+    if(!newPassword || newPassword.length < 6){
+      errEl.textContent = 'New password must be at least 6 characters long.';
+      return;
+    }
+
+    try{
+      const res = await fetch(API_BASE + '/auth/reset-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email: email,
+          reset_code: resetCode,
+          new_password: newPassword
+        })
+      });
+      const data = await res.json();
+      if(!res.ok){
+        errEl.textContent = data.detail || 'Password reset failed. Please check the verification code.';
+        return;
+      }
+
+      // Password reset successful! Switch to signin mode
+      switchAuthMode('signin');
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPass').value = '';
+      document.getElementById('resetCodeInput').value = '';
+      document.getElementById('resetNewPass').value = '';
+      document.getElementById('loginOk').textContent = '✓ Password reset successfully! Please sign in with your new password.';
+      showToast('✓ Password reset successfully! Please sign in.');
+    } catch(e){
+      errEl.textContent = 'Unable to connect to backend server at ' + API_BASE;
+    }
+    return;
+  }
+
   const password = document.getElementById('loginPass').value;
 
   if(authMode === 'register'){
@@ -1397,7 +1568,7 @@ function navigate(targetRoute){
 
   if(!isAuthed){
     // Protected routes redirect to login
-    if(cleanRoute !== 'login' && cleanRoute !== 'register'){
+    if(cleanRoute !== 'login' && cleanRoute !== 'register' && cleanRoute !== 'forgot'){
       window.location.hash = '#login';
       showAuthScreen('signin');
       return;
@@ -1407,13 +1578,18 @@ function navigate(targetRoute){
       showAuthScreen('register');
       return;
     }
+    if(cleanRoute === 'forgot'){
+      window.location.hash = '#forgot';
+      showAuthScreen('forgot');
+      return;
+    }
     window.location.hash = '#login';
     showAuthScreen('signin');
     return;
   }
 
-  // Authenticated user trying to access login/register -> redirect to dashboard
-  if(cleanRoute === 'login' || cleanRoute === 'register'){
+  // Authenticated user trying to access login/register/forgot -> redirect to dashboard
+  if(cleanRoute === 'login' || cleanRoute === 'register' || cleanRoute === 'forgot'){
     window.location.hash = '#dashboard';
     showAppPage('dashboard');
     return;
@@ -2782,7 +2958,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // 4. Not authenticated: Open FIRST page as Login page
   currentUser = null;
-  const initialAuthMode = currentHash === 'register' ? 'register' : 'signin';
+  const initialAuthMode = currentHash === 'register' ? 'register' : (currentHash === 'forgot' ? 'forgot' : 'signin');
   showAuthScreen(initialAuthMode);
 });
 

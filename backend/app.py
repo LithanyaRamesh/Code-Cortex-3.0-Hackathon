@@ -8,9 +8,10 @@ from email import policy
 import json
 import os
 import re
+import secrets
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
 import joblib
@@ -20,6 +21,7 @@ from pydantic import BaseModel
 
 from database import (
     init_db, create_user, get_user_by_email, get_user_by_id,
+    update_user_password, save_password_reset, verify_and_consume_password_reset,
     save_scan, get_scans, get_scan_by_id, get_stats,
     save_feedback, get_feedback_stats, get_all_feedback,
     delete_scan, clear_all_scans, get_alerts
@@ -88,6 +90,31 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ForgotPasswordResponse(BaseModel):
+    status: str
+    message: str
+    email: str
+    reset_code: str
+    reset_token: str
+    expires_in_minutes: int
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    reset_code: str
+    new_password: str
+
+
+class ResetPasswordResponse(BaseModel):
+    status: str
+    message: str
+    email: str
 
 
 class GoogleAuthRequest(BaseModel):
@@ -331,6 +358,73 @@ def google_login(req: GoogleAuthRequest):
             )
         )
     raise HTTPException(400, "Google OAuth token verification requires active client credentials.")
+
+
+@app.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(req: ForgotPasswordRequest):
+    email = (req.email or "").strip().lower()
+    if not email or "@" not in email or "." not in email:
+        raise HTTPException(400, "A valid registered email address is required.")
+    
+    user = get_user_by_email(email)
+    if not user:
+        raise HTTPException(404, f"No registered account found with email address: {email}")
+    
+    # Generate 6-digit cryptographic verification code
+    reset_code = f"{secrets.randbelow(900000) + 100000}"
+    
+    # Generate signed reset token valid for 15 minutes
+    reset_token = create_jwt_token({
+        "sub": email,
+        "purpose": "password_reset",
+        "code": reset_code
+    }, expires_seconds=900)
+    
+    expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+    save_password_reset(email=email, reset_code=reset_code, reset_token=reset_token, expires_at=expires_at)
+    
+    return ForgotPasswordResponse(
+        status="success",
+        message="Password reset verification code generated successfully.",
+        email=email,
+        reset_code=reset_code,
+        reset_token=reset_token,
+        expires_in_minutes=15
+    )
+
+
+@app.post("/auth/reset-password", response_model=ResetPasswordResponse)
+def reset_password(req: ResetPasswordRequest):
+    email = (req.email or "").strip().lower()
+    reset_code = (req.reset_code or "").strip()
+    new_pwd = req.new_password or ""
+    
+    if not email or not reset_code:
+        raise HTTPException(400, "Email address and 6-digit verification code are required.")
+    
+    if len(new_pwd) < 6:
+        raise HTTPException(400, "New password must be at least 6 characters long.")
+    
+    user = get_user_by_email(email)
+    if not user:
+        raise HTTPException(404, "No account found with this email address.")
+    
+    # Verify code in database
+    valid = verify_and_consume_password_reset(email, reset_code)
+    if not valid:
+        raise HTTPException(400, "Invalid or expired verification code. Please request a new password reset code.")
+    
+    # Update password with fresh salt and hash
+    pwd_hash, salt = hash_password(new_pwd)
+    updated = update_user_password(email, pwd_hash, salt)
+    if not updated:
+        raise HTTPException(500, "Failed to update password. Please try again.")
+    
+    return ResetPasswordResponse(
+        status="success",
+        message="Password updated successfully. You can now sign in with your new credentials.",
+        email=email
+    )
 
 
 # --- Forensic & Header Analysis ---
