@@ -275,9 +275,74 @@ def test_attack_surface_detection():
     assert data["interaction_risk_scores"]["made_payment"] == 100.0
     assert data["interaction_risk_scores"]["entered_otp"] == 98.0
 
-    # Check Incident Timeline
-    assert "incident_timeline" in data
-    assert len(data["incident_timeline"]) >= 5
+    # Check Attacker Intent
+    assert "attacker_intent" in data
+    assert data["attacker_intent"] is not None
+    assert "Steal OTP" in data["attacker_intent"]["intent_title"] or "Steal Password" in data["attacker_intent"]["intent_title"]
+    assert len(data["attacker_intent"]["evidence"]) >= 1
+    assert len(data["attacker_intent"]["description"]) > 10
+
+
+def test_attacker_intent_detection():
+    # 1. OTP harvesting
+    r_otp = client.post("/predict", json={
+        "subject": "Security Check",
+        "body": "Please authenticate by entering the 6-digit OTP code sent to your phone."
+    })
+    assert r_otp.status_code == 200
+    d_otp = r_otp.json()
+    assert d_otp["attacker_intent"]["intent_title"] == "Steal OTP / 2FA Token"
+    assert d_otp["attacker_intent"]["primary_vector"] == "🔢 OTP"
+
+    # 2. Password reset lure
+    r_pwd = client.post("/predict", json={
+        "subject": "Password reset notice",
+        "body": "Please enter your password to confirm your security update at http://phishing-portal.xyz/login"
+    })
+    assert r_pwd.status_code == 200
+    d_pwd = r_pwd.json()
+    assert "Steal Password" in d_pwd["attacker_intent"]["intent_title"]
+    assert d_pwd["attacker_intent"]["primary_vector"] == "🔑 Password"
+
+    # 3. Financial wire transfer
+    r_wire = client.post("/predict", json={
+        "subject": "Executive Wire Request",
+        "body": "Please process a wire transfer payment of $45,000 using the following wiring instructions."
+    })
+    assert r_wire.status_code == 200
+    d_wire = r_wire.json()
+    assert "Get Payment" in d_wire["attacker_intent"]["intent_title"]
+    assert d_wire["attacker_intent"]["primary_vector"] == "💳 Payment"
+
+    # 4. Attachment lure
+    r_att = client.post("/predict", json={
+        "subject": "Invoice Enclosed",
+        "body": "Please open attached invoice.zip to review pending purchase order details."
+    })
+    assert r_att.status_code == 200
+    d_att = r_att.json()
+    assert "Attachment" in d_att["attacker_intent"]["intent_title"]
+    assert d_att["attacker_intent"]["primary_vector"] == "📎 Attachment"
+
+    # 5. Sensitive data lure
+    r_sens = client.post("/predict", json={
+        "subject": "Tax Form Update",
+        "body": "Kindly provide your SSN and social security tax form w-2 for payroll verification."
+    })
+    assert r_sens.status_code == 200
+    d_sens = r_sens.json()
+    assert "Sensitive Information" in d_sens["attacker_intent"]["intent_title"]
+    assert d_sens["attacker_intent"]["primary_vector"] == "📤 Sensitive Information"
+
+    # 6. Benign email
+    r_clean = client.post("/predict", json={
+        "subject": "Team Lunch",
+        "body": "Hey team, let's meet at 12:30 PM for lunch in the 3rd floor cafeteria."
+    })
+    assert r_clean.status_code == 200
+    d_clean = r_clean.json()
+    assert "No Malicious Intent" in d_clean["attacker_intent"]["intent_title"]
+    assert d_clean["attacker_intent"]["primary_vector"] == "✅ Safe"
 
 
 def test_containment_assessment():

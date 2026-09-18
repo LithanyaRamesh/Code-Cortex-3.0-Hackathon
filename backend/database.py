@@ -96,6 +96,7 @@ def init_db():
         ("interaction_scores_json", "TEXT"),
         ("containment_json", "TEXT"),
         ("timeline_json", "TEXT"),
+        ("attacker_intent_json", "TEXT"),
     ]
     for col_name, col_type in migration_columns:
         try:
@@ -335,6 +336,7 @@ def save_scan(scan_data: Dict[str, Any], user_id: Optional[int] = None) -> Dict[
     interaction_scores_json = json.dumps(scan_data.get("interaction_risk_scores", {}))
     containment_json = json.dumps(scan_data.get("containment_playbooks", {}))
     timeline_json = json.dumps(scan_data.get("incident_timeline", []))
+    attacker_intent_json = json.dumps(scan_data.get("attacker_intent", {}))
     
     try:
         cur.execute("""
@@ -342,9 +344,9 @@ def save_scan(scan_data: Dict[str, Any], user_id: Optional[int] = None) -> Dict[
             user_id, scan_id, subject_preview, verdict, risk_level,
             confidence, model_probability_spam, explanation, indicators_json, evidence_json,
             attack_surface_json, what_can_happen, what_to_do_now_json,
-            interaction_scores_json, containment_json, timeline_json,
+            interaction_scores_json, containment_json, timeline_json, attacker_intent_json,
             spf, dkim, dmarc, suspicious_links, raw_snippet, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             scan_data["scan_id"],
@@ -362,6 +364,7 @@ def save_scan(scan_data: Dict[str, Any], user_id: Optional[int] = None) -> Dict[
             interaction_scores_json,
             containment_json,
             timeline_json,
+            attacker_intent_json,
             scan_data.get("spf", "UNKNOWN"),
             scan_data.get("dkim", "UNKNOWN"),
             scan_data.get("dmarc", "UNKNOWN"),
@@ -480,6 +483,7 @@ def _hydrate_scan_row(r: sqlite3.Row) -> Dict[str, Any]:
         ("interaction_scores_json", {}),
         ("containment_json", {}),
         ("timeline_json", []),
+        ("attacker_intent_json", {}),
     ]:
         key_target = field.replace("_json", "") if field.endswith("_json") else field
         if field == "indicators_json": key_target = "indicators"
@@ -489,6 +493,7 @@ def _hydrate_scan_row(r: sqlite3.Row) -> Dict[str, Any]:
         elif field == "interaction_scores_json": key_target = "interaction_risk_scores"
         elif field == "containment_json": key_target = "containment_playbooks"
         elif field == "timeline_json": key_target = "incident_timeline"
+        elif field == "attacker_intent_json": key_target = "attacker_intent"
 
         try:
             d[key_target] = json.loads(d.get(field) or "null") if d.get(field) else default

@@ -225,6 +225,14 @@ class FeedbackRequest(BaseModel):
     comments: Optional[str] = ""
 
 
+class AttackerIntent(BaseModel):
+    intent_title: str
+    confidence: str
+    description: str
+    evidence: List[str]
+    primary_vector: str
+
+
 class AnalyzeResponse(BaseModel):
     verdict: str
     risk_level: str
@@ -233,6 +241,7 @@ class AnalyzeResponse(BaseModel):
     explanation: str
     indicators: List[Indicator]
     evidence_items: List[EvidenceItem]
+    attacker_intent: Optional[AttackerIntent] = None
     attack_surface_vectors: List[AttackSurfaceVector] = []
     what_can_happen: str = ""
     what_to_do_now: List[str] = []
@@ -928,6 +937,130 @@ def _build_containment_playbooks(baseline_risk: float, evidence_summary: str = "
     return playbooks
 
 
+def _evaluate_attacker_intent(
+    risk_score: float,
+    prob_spam: float,
+    susp_urls: List[str],
+    n_suspicious: int,
+    credential_triggers: List[str],
+    otp_triggers: List[str],
+    financial_triggers: List[str],
+    attachment_triggers: List[str],
+    sensitive_triggers: List[str],
+    reply_triggers: List[str],
+    exec_triggers: List[str],
+    has_malicious_att_url: bool,
+    dkim: str,
+    spf: str
+) -> AttackerIntent:
+    # Priority ordered evaluation for specific adversary goal detection
+
+    # 1. Steal OTP
+    if otp_triggers:
+        return AttackerIntent(
+            intent_title="Steal OTP / 2FA Token",
+            confidence=f"{min(99.9, max(88.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to intercept your one-time verification code to bypass multi-factor authentication (MFA) and execute real-time account takeover.",
+            evidence=[f"Solicits one-time verification token: '{t}'" for t in otp_triggers[:3]],
+            primary_vector="🔢 OTP"
+        )
+
+    # 2. Steal Password
+    if credential_triggers:
+        ev = [f"Direct credential request detected: '{t}'" for t in credential_triggers[:3]]
+        if susp_urls:
+            ev.append(f"Deceptive login endpoint: {susp_urls[0]}")
+        return AttackerIntent(
+            intent_title="Steal Password / Credentials",
+            confidence=f"{min(99.9, max(85.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to harvest your account login credentials through a spoofed authentication portal or urgent reset prompt.",
+            evidence=ev,
+            primary_vector="🔑 Password"
+        )
+
+    # 3. Get Payment
+    if financial_triggers or (exec_triggers and ("wire" in str(financial_triggers) or "payment" in str(financial_triggers))):
+        ev = [f"Payment / wire solicitation: '{t}'" for t in financial_triggers[:3]]
+        if exec_triggers:
+            ev.append(f"Authority pressure keyword: '{exec_triggers[0]}'")
+        return AttackerIntent(
+            intent_title="Get Payment / Financial Fraud",
+            confidence=f"{min(99.9, max(84.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to solicit unauthorized wire transfers, fraudulent invoice settlements, or divert banking details.",
+            evidence=ev,
+            primary_vector="💳 Payment"
+        )
+
+    # 4. Make User Open a Malicious Attachment
+    if attachment_triggers or has_malicious_att_url:
+        ev = [f"Enclosed file lure: '{t}'" for t in attachment_triggers[:3]]
+        if has_malicious_att_url:
+            ev.append("High-risk payload download link identified in body")
+        return AttackerIntent(
+            intent_title="Make User Open a Malicious Attachment",
+            confidence=f"{min(98.0, max(80.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to induce you to download or execute an attachment to deliver malware payloads or ransomware.",
+            evidence=ev if ev else ["Attachment lure detected in email context"],
+            primary_vector="📎 Attachment"
+        )
+
+    # 5. Collect Sensitive Information
+    if sensitive_triggers:
+        return AttackerIntent(
+            intent_title="Collect Sensitive Information / Data Leakage",
+            confidence=f"{min(98.0, max(82.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to harvest Personally Identifiable Information (SSN, tax records, direct deposit data) for identity theft.",
+            evidence=[f"Sensitive data keyword: '{t}'" for t in sensitive_triggers[:3]],
+            primary_vector="📤 Sensitive Information"
+        )
+
+    # 6. Redirect User to a Phishing Website
+    if n_suspicious > 0:
+        return AttackerIntent(
+            intent_title="Redirect User to a Phishing Website",
+            confidence=f"{min(99.9, max(87.0, prob_spam * 100)):.1f}% High Confidence",
+            description="The attacker is attempting to route your browser to a deceptive external portal to compromise your device or capture credentials.",
+            evidence=[f"Deceptive link target: {u}" for u in susp_urls[:2]],
+            primary_vector="🔗 Link"
+        )
+
+    # 7. Social Engineering / Sender Impersonation
+    if (dkim == "FAIL" or spf == "FAIL") or exec_triggers or reply_triggers:
+        ev = []
+        if dkim == "FAIL" or spf == "FAIL":
+            ev.append(f"Domain authentication failed (DKIM: {dkim}, SPF: {spf})")
+        if exec_triggers:
+            ev.append(f"Impersonating authority figure: '{exec_triggers[0]}'")
+        if reply_triggers:
+            ev.append(f"Solicits direct reply: '{reply_triggers[0]}'")
+        return AttackerIntent(
+            intent_title="Impersonate Trusted Entity / Social Engineering",
+            confidence=f"{min(95.0, max(75.0, prob_spam * 100)):.1f}% Moderate Confidence",
+            description="The attacker is impersonating a known authority or organization to establish deceptive trust and solicit unauthorized actions.",
+            evidence=ev if ev else ["Sender authentication verification failed"],
+            primary_vector="👤 Sender"
+        )
+
+    # 8. Benign / Legitimate
+    if risk_score < 35.0 and prob_spam < 0.50:
+        return AttackerIntent(
+            intent_title="No Malicious Intent Detected (Benign Communication)",
+            confidence=f"{max(85.0, (1.0 - prob_spam) * 100):.1f}% Clean",
+            description="No adversarial patterns, credential harvesting, or deceptive payloads detected. Standard legitimate communication.",
+            evidence=["All sender authentication and domain reputation checks passed", "No deceptive links, scripts, or coercive solicitations identified"],
+            primary_vector="✅ Safe"
+        )
+
+    # Generic Fallback
+    return AttackerIntent(
+        intent_title="Social Engineering & Phishing Lure",
+        confidence=f"{max(70.0, prob_spam * 100):.1f}% Confidence",
+        description="The message exhibits anomalous patterns designed to lure the recipient into unverified external interactions.",
+        evidence=["Suspicious message composition matching spam/phishing training patterns"],
+        primary_vector="💬 Social Engineering"
+    )
+
+
 def _evaluate_attack_surface(
     combined: str,
     dkim: str,
@@ -951,108 +1084,108 @@ def _evaluate_attack_surface(
     timestamp: str
 ) -> Dict[str, Any]:
     vectors: List[AttackSurfaceVector] = []
+    has_malicious_att_url = any(MALICIOUS_ATTACHMENT_URL_RE.search(u) for u in susp_urls)
 
-    # 1. 📩 Open Vector
-    open_detected = bool(risk_score >= 35.0 or n_suspicious > 0 or (has_auth_headers and (dkim == "FAIL" or spf == "FAIL")))
-    vectors.append(AttackSurfaceVector(
-        key="open",
-        action_title="Open / View Email",
-        icon="📩",
-        risk_level="HIGH" if risk_score >= 60.0 else ("MEDIUM" if risk_score >= 35.0 else "LOW"),
-        blast_radius="Confirms active recipient mailbox to attacker and logs client IP/environment fingerprint via remote beacons.",
-        trigger_mechanism="Opening message and rendering remote tracking images or web-beacon telemetry.",
-        detected=open_detected,
-        evidence="Inbound unverified sender with tracking telemetry characteristics." if open_detected else "Clean message headers; benign local render."
-    ))
-
-    # 2. 🔗 Link Vector
-    link_detected = bool(n_suspicious > 0 or n_links > 0)
+    # 1. 🔗 Link Vector (Phishing / Credential Theft)
+    link_detected = bool(n_suspicious > 0)
     vectors.append(AttackSurfaceVector(
         key="link",
-        action_title="Click Embedded Link",
+        action_title="🔗 Link: Phishing & Credential Theft",
         icon="🔗",
-        risk_level="CRITICAL" if n_suspicious > 0 else ("MEDIUM" if risk_score >= 40.0 else "LOW"),
-        blast_radius="Redirects to deceptive phishing landing page designed to capture credentials or drop malware.",
-        trigger_mechanism="User clicks embedded hyperlink in email body or action button.",
+        risk_level="CRITICAL" if n_suspicious > 0 else "LOW",
+        blast_radius="Redirects browser to an adversary-controlled phishing landing page designed to capture credentials or install drive-by malware.",
+        trigger_mechanism="User clicks on an unverified hyperlink embedded in the email body.",
         detected=link_detected,
-        evidence=f"Detected {n_suspicious} high-risk URL(s): {', '.join(susp_urls[:2])}" if n_suspicious > 0 else f"{n_links} verified link(s) found in body."
+        evidence=f"Detected {n_suspicious} deceptive/phishing link(s): {', '.join(susp_urls[:2])}" if link_detected else ""
     ))
 
-    # 3. 📎 Attachment Vector
-    has_malicious_att_url = any(MALICIOUS_ATTACHMENT_URL_RE.search(u) for u in susp_urls)
+    # 2. 📎 Attachment Vector (Malware Risk)
     att_detected = bool(attachment_triggers or has_malicious_att_url)
     vectors.append(AttackSurfaceVector(
         key="attachment",
-        action_title="Open / Download Attachment",
+        action_title="📎 Attachment: Malware Risk",
         icon="📎",
-        risk_level="CRITICAL" if (has_malicious_att_url or prob_spam > 0.6) else "HIGH",
-        blast_radius="Executes weaponized macros, malware payloads, ransomware droppers, or credential scrapers.",
-        trigger_mechanism="Downloading and executing enclosed or linked file attachment.",
+        risk_level="CRITICAL" if (has_malicious_att_url or prob_spam > 0.6) else ("HIGH" if attachment_triggers else "LOW"),
+        blast_radius="Executes weaponized macros, malicious payload droppers, info-stealers, or ransomware binaries directly on your local endpoint.",
+        trigger_mechanism="Opening or extracting an enclosed file attachment or executing downloaded files.",
         detected=att_detected,
-        evidence=f"Attachment references detected: {', '.join(attachment_triggers[:2])}" if attachment_triggers else ("Direct payload download URLs identified." if has_malicious_att_url else "")
+        evidence=f"Attachment references detected: {', '.join(attachment_triggers[:2])}" if attachment_triggers else ("Direct payload download URL identified." if has_malicious_att_url else "")
     ))
 
-    # 4. ↩️ Reply Vector
-    reply_detected = bool(reply_triggers or (exec_triggers and (urgency_triggers or financial_triggers)))
+    # 3. 👤 Sender Vector (Impersonation)
+    sender_detected = bool((has_auth_headers and (dkim == "FAIL" or spf == "FAIL")) or exec_triggers)
+    vectors.append(AttackSurfaceVector(
+        key="sender",
+        action_title="👤 Sender: Impersonation",
+        icon="👤",
+        risk_level="CRITICAL" if (has_auth_headers and (dkim == "FAIL" or spf == "FAIL")) else ("HIGH" if exec_triggers else "LOW"),
+        blast_radius="Deceives recipient into believing the email originates from a trusted authority or legitimate service provider.",
+        trigger_mechanism="Spoofed email sender address, forged display name, or fraudulent executive signature.",
+        detected=sender_detected,
+        evidence=f"Cryptographic verification failed (DKIM: {dkim}, SPF: {spf})" if (has_auth_headers and (dkim == 'FAIL' or spf == 'FAIL')) else (f"Executive impersonation triggers: {', '.join(exec_triggers[:2])}" if exec_triggers else "")
+    ))
+
+    # 4. 💬 Reply Vector (Social Engineering / Information Leakage)
+    reply_detected = bool(reply_triggers)
     vectors.append(AttackSurfaceVector(
         key="reply",
-        action_title="Reply / Contact Sender",
-        icon="↩️",
-        risk_level="CRITICAL" if (exec_triggers and financial_triggers) else "HIGH",
-        blast_radius="Validates active corporate target to adversary, initiating multi-stage Business Email Compromise (BEC).",
-        trigger_mechanism="Replying directly to sender or calling unverified phone numbers in email.",
+        action_title="💬 Reply: Social Engineering & Info Leakage",
+        icon="💬",
+        risk_level="HIGH" if reply_triggers else "LOW",
+        blast_radius="Confirms active mailbox, opens direct communication channel for secondary spear-phishing and Business Email Compromise (BEC).",
+        trigger_mechanism="Replying directly to sender or responding to unverified communication channels.",
         detected=reply_detected,
-        evidence=f"Direct response solicitation detected: {', '.join((reply_triggers or exec_triggers)[:2])}" if reply_detected else ""
+        evidence=f"Direct response solicitation: {', '.join(reply_triggers[:2])}" if reply_detected else ""
     ))
 
-    # 5. 🔐 Password Vector
+    # 5. 🔑 Password Vector (Credential Theft)
     pwd_detected = bool(credential_triggers)
     vectors.append(AttackSurfaceVector(
         key="password",
-        action_title="Enter Password / Credentials",
-        icon="🔐",
-        risk_level="CRITICAL",
-        blast_radius="Direct account takeover, unauthorized credential re-use across corporate systems, and single sign-on compromise.",
-        trigger_mechanism="Submitting password or login credentials into external form or spoofed portal.",
+        action_title="🔑 Password: Credential Theft",
+        icon="🔑",
+        risk_level="CRITICAL" if credential_triggers else "LOW",
+        blast_radius="Direct compromise of account credentials, enabling account takeover and lateral movement across systems.",
+        trigger_mechanism="Entering login credentials, passwords, or security PINs into external web portals.",
         detected=pwd_detected,
         evidence=f"Credential submission requested: {', '.join(credential_triggers[:2])}" if pwd_detected else ""
     ))
 
-    # 6. 🔑 OTP Vector
+    # 6. 🔢 OTP Vector (Account Takeover)
     otp_detected = bool(otp_triggers)
     vectors.append(AttackSurfaceVector(
         key="otp",
-        action_title="Enter OTP / 2FA Token",
-        icon="🔑",
-        risk_level="CRITICAL",
-        blast_radius="Real-time multi-factor authentication bypass, enabling immediate session hijacking and MFA unbinding.",
-        trigger_mechanism="Entering 2FA token or SMS one-time passcode into attacker relay portal.",
+        action_title="🔢 OTP: Account Takeover",
+        icon="🔢",
+        risk_level="CRITICAL" if otp_triggers else "LOW",
+        blast_radius="Real-time bypass of multi-factor authentication (MFA), enabling session interception and immediate account takeover.",
+        trigger_mechanism="Submitting one-time verification codes or 2FA tokens into unauthorized attacker proxies.",
         detected=otp_detected,
         evidence=f"One-Time Password / 2FA code requested: {', '.join(otp_triggers[:2])}" if otp_detected else ""
     ))
 
-    # 7. 💳 Payment Vector
-    pay_detected = bool(financial_triggers or re.search(r"\b(?:wire|transfer|payment|invoice|\$\d+)\b", combined, re.I))
+    # 7. 💳 Payment Vector (Financial Fraud)
+    pay_detected = bool(financial_triggers or (isinstance(combined, str) and re.search(r"\b(?:wire transfer|wiring instructions|direct deposit|bank account details|routing number)\b", combined, re.I)))
     vectors.append(AttackSurfaceVector(
         key="payment",
-        action_title="Make Payment / Wire Transfer",
+        action_title="💳 Payment: Financial Fraud",
         icon="💳",
-        risk_level="CRITICAL" if (urgency_triggers or prob_spam > 0.45) else "HIGH",
-        blast_radius="Direct financial fraud, unauthorized wire routing, gift card loss, or unrecoverable invoice diversion.",
-        trigger_mechanism="Executing wire transfer, updating bank routing details, or settling invoice.",
+        risk_level="CRITICAL" if pay_detected else "LOW",
+        blast_radius="Direct financial loss through fraudulent wire transfers, altered direct deposits, or counterfeit invoice payments.",
+        trigger_mechanism="Initiating bank wire transfers, purchasing gift cards, or modifying vendor payment details.",
         detected=pay_detected,
-        evidence=f"Payment/wire transfer language: {', '.join(financial_triggers[:2])}" if pay_detected else ""
+        evidence=f"Payment / wire transfer language: {', '.join(financial_triggers[:2])}" if financial_triggers else ("Financial routing keywords detected." if pay_detected else "")
     ))
 
-    # 8. 📝 Sensitive Data Vector
+    # 8. 📤 Sensitive Information Vector (Data Leakage)
     sens_detected = bool(sensitive_triggers)
     vectors.append(AttackSurfaceVector(
-        key="sensitive_data",
-        action_title="Share Sensitive / PII Data",
-        icon="📝",
-        risk_level="CRITICAL",
-        blast_radius="Identity theft, payroll fraud (W-2/SSN theft), corporate data leakage, and regulatory non-compliance.",
-        trigger_mechanism="Submitting SSN, tax documents, bank details, or internal corporate records.",
+        key="sensitive_info",
+        action_title="📤 Sensitive Info: Data Leakage",
+        icon="📤",
+        risk_level="CRITICAL" if sensitive_triggers else "LOW",
+        blast_radius="Exfiltration of Personally Identifiable Information (SSN, tax forms, payroll records) causing identity theft and data leaks.",
+        trigger_mechanism="Submitting confidential personal, tax, or corporate records to untrusted parties.",
         detected=sens_detected,
         evidence=f"Confidential data solicitation: {', '.join(sensitive_triggers[:2])}" if sens_detected else ""
     ))
@@ -1089,7 +1222,7 @@ def _evaluate_attack_surface(
         )
 
     # Synthesize "What Should I Do Now?" (Active Protection Steps)
-    if risk_score >= 35.0:
+    if risk_score >= 35.0 or active_vectors:
         what_to_do_now = [
             "Do NOT click any links, open attachments, or reply to the sender.",
             "Verify any urgent or financial request via an independent secondary communication channel (phone/in-person).",
@@ -1497,6 +1630,25 @@ def _process_analysis(
         "risk_score": round(risk_score, 2)
     }
 
+    # Attacker Intent Evaluation
+    has_malicious_att_url = any(MALICIOUS_ATTACHMENT_URL_RE.search(u) for u in susp_urls)
+    attacker_intent = _evaluate_attacker_intent(
+        risk_score=risk_score,
+        prob_spam=prob_spam,
+        susp_urls=susp_urls,
+        n_suspicious=n_suspicious,
+        credential_triggers=credential_triggers,
+        otp_triggers=otp_triggers,
+        financial_triggers=financial_triggers,
+        attachment_triggers=attachment_triggers,
+        sensitive_triggers=sensitive_triggers,
+        reply_triggers=reply_triggers,
+        exec_triggers=exec_triggers,
+        has_malicious_att_url=has_malicious_att_url,
+        dkim=dkim,
+        spf=spf
+    )
+
     result = AnalyzeResponse(
         verdict=verdict,
         risk_level=risk_level,
@@ -1505,6 +1657,7 @@ def _process_analysis(
         explanation=explanation,
         indicators=indicators,
         evidence_items=evidence_items,
+        attacker_intent=attacker_intent,
         attack_surface_vectors=as_eval["attack_surface_vectors"],
         what_can_happen=as_eval["what_can_happen"],
         what_to_do_now=as_eval["what_to_do_now"],

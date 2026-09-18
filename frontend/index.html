@@ -298,6 +298,15 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .surface-trigger{color:var(--sub); font-size:11px; margin-top:4px; font-style:italic;}
 .surface-evidence-pill{background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:10.5px; color:var(--cyan); margin-top:auto;}
 
+/* ATTACKER INTENT */
+.attacker-intent-box{background:linear-gradient(135deg, rgba(17,24,39,0.98), rgba(13,18,32,0.98)); border:1px solid rgba(34,211,238,0.3); border-radius:12px; padding:18px 20px;}
+.attacker-intent-head{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
+.attacker-intent-title{font-size:17px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
+.attacker-intent-desc{color:#cbd5e1; font-size:13px; line-height:1.55; margin-bottom:14px;}
+.attacker-intent-ev-title{font-size:11px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;}
+.attacker-intent-ev-list{display:flex; flex-direction:column; gap:6px;}
+.attacker-intent-ev-item{display:flex; align-items:flex-start; gap:8px; background:var(--card2); border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:12px; color:#e2e8f0;}
+
 /* WHAT CAN HAPPEN & WHAT SHOULD I DO NOW */
 .what-can-happen-card{background:linear-gradient(135deg, rgba(239,68,68,0.08), rgba(17,23,38,0.95)); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:18px; margin-top:16px;}
 .what-to-do-card{background:linear-gradient(135deg, rgba(34,211,238,0.06), rgba(17,23,38,0.95)); border:1px solid rgba(34,211,238,0.3); border-radius:12px; padding:18px; margin-top:16px;}
@@ -881,14 +890,30 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 
       <div id="verdictBanner" class="verdict-banner"></div>
 
-      <!-- ATTACK SURFACE DETECTION & THREAT SURFACE MAP -->
+      <!-- 1. ATTACKER INTENT: WHAT IS THE ATTACKER TRYING TO DO? -->
+      <div class="card" style="margin-top:16px;" id="attackerIntentCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15.5px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🎯 What is the attacker trying to do?</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Adversarial tactical objective and cited evidence identified from email context.</p>
+          </div>
+          <span class="badge crit" id="attackerIntentConfidenceBadge">95.0% Confidence</span>
+        </div>
+        <div id="attackerIntentBody" style="margin-top:14px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- 2. ATTACK SURFACE DETECTION & THREAT SURFACE MAP -->
       <div class="card" style="margin-top:16px;" id="attackSurfaceCard">
         <div class="row-between">
           <div>
             <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-              <span>🎯 Attack Surface &amp; Threat Surface Map</span>
+              <span>🗺️ Attack Surface Map</span>
             </h4>
-            <p class="sub" style="margin-bottom:0;">Identifies user actions that can trigger threat activation and their blast radius.</p>
+            <p class="sub" style="margin-bottom:0;">Identifies active attack surfaces supported by email evidence and their blast radius.</p>
           </div>
           <span class="badge crit" id="detectedVectorsBadge">0 Active Vectors</span>
         </div>
@@ -916,12 +941,12 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         </div>
       </div>
 
-      <!-- I ALREADY INTERACTED - EMERGENCY CONTAINMENT -->
+      <!-- 3. I ALREADY INTERACTED - EMERGENCY CONTAINMENT -->
       <div class="containment-panel" id="containmentPanel">
         <div class="row-between">
           <div>
             <h4 style="font-size:15.5px; color:var(--red); display:flex; align-items:center; gap:8px;">
-              <span>🚨 I Already Interacted — Emergency Incident Containment</span>
+              <span>🚨 I Already Interacted — Emergency Containment</span>
             </h4>
             <p class="sub" style="margin-bottom:0;">Select the action you performed to generate instant, step-by-step incident containment procedures.</p>
           </div>
@@ -931,31 +956,31 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         <div class="containment-btn-grid" id="containmentBtnGrid">
           <div class="containment-btn" id="cbtn-opened" onclick="selectContainmentAction('opened')">
             <span class="containment-btn-icon">📩</span>
-            <span class="containment-btn-title">Opened Email</span>
+            <span class="containment-btn-title">I only opened the email</span>
           </div>
           <div class="containment-btn active" id="cbtn-clicked_link" onclick="selectContainmentAction('clicked_link')">
             <span class="containment-btn-icon">🔗</span>
-            <span class="containment-btn-title">Clicked Link</span>
+            <span class="containment-btn-title">I clicked a link</span>
           </div>
           <div class="containment-btn" id="cbtn-opened_attachment" onclick="selectContainmentAction('opened_attachment')">
             <span class="containment-btn-icon">📎</span>
-            <span class="containment-btn-title">Opened Attachment</span>
+            <span class="containment-btn-title">I opened an attachment</span>
           </div>
           <div class="containment-btn" id="cbtn-entered_password" onclick="selectContainmentAction('entered_password')">
-            <span class="containment-btn-icon">🔐</span>
-            <span class="containment-btn-title">Entered Password</span>
+            <span class="containment-btn-icon">🔑</span>
+            <span class="containment-btn-title">I entered my password</span>
           </div>
           <div class="containment-btn" id="cbtn-entered_otp" onclick="selectContainmentAction('entered_otp')">
-            <span class="containment-btn-icon">🔑</span>
-            <span class="containment-btn-title">Entered OTP / 2FA</span>
+            <span class="containment-btn-icon">🔢</span>
+            <span class="containment-btn-title">I entered an OTP</span>
           </div>
           <div class="containment-btn" id="cbtn-made_payment" onclick="selectContainmentAction('made_payment')">
             <span class="containment-btn-icon">💳</span>
-            <span class="containment-btn-title">Made Payment</span>
+            <span class="containment-btn-title">I made a payment</span>
           </div>
           <div class="containment-btn" id="cbtn-shared_sensitive_data" onclick="selectContainmentAction('shared_sensitive_data')">
-            <span class="containment-btn-icon">📝</span>
-            <span class="containment-btn-title">Shared Sensitive Data</span>
+            <span class="containment-btn-icon">📤</span>
+            <span class="containment-btn-title">I shared sensitive information</span>
           </div>
         </div>
 
@@ -2852,7 +2877,56 @@ function renderEvidenceMap(rawText, evidenceItems){
 let activeContainmentPlaybooks = {};
 let activeBaselineRisk = 75.0;
 
+function renderAttackerIntent(d){
+  const bodyEl = document.getElementById('attackerIntentBody');
+  const badgeEl = document.getElementById('attackerIntentConfidenceBadge');
+  if(!bodyEl) return;
+
+  const intent = d.attacker_intent || {
+    intent_title: d.risk_level === 'Low' ? "No Malicious Intent Detected (Benign Communication)" : "Social Engineering & Phishing Lure",
+    confidence: `${d.confidence}% Confidence`,
+    description: d.risk_level === 'Low' ? "Standard legitimate communication with no credential harvesting, weaponized payloads, or coercive solicitations." : "The message exhibits anomalous patterns designed to lure the recipient into unverified interactions.",
+    evidence: (d.evidence_items && d.evidence_items.length) ? d.evidence_items.slice(0, 3).map(e => `${e.category}: "${e.text}"`) : ["Verified message context and cryptographic domain alignment"],
+    primary_vector: d.risk_level === 'Low' ? "✅ Safe" : "⚠️ Threat"
+  };
+
+  if(badgeEl){
+    badgeEl.textContent = intent.confidence || `${d.confidence}% Confidence`;
+    badgeEl.className = d.risk_level === 'Low' ? 'badge low' : 'badge crit';
+  }
+
+  const isClean = d.risk_level === 'Low';
+  const icon = isClean ? '🛡️' : '🎯';
+  const borderStyle = isClean ? 'border-color:rgba(34,197,94,0.3);' : 'border-color:rgba(34,211,238,0.3);';
+
+  bodyEl.innerHTML = `
+    <div class="attacker-intent-box" style="${borderStyle}">
+      <div class="attacker-intent-head">
+        <div class="attacker-intent-title">
+          <span>${icon}</span>
+          <span>${escapeHtml(intent.intent_title)}</span>
+        </div>
+        <span class="badge ${isClean ? 'low' : 'crit'}">${escapeHtml(intent.primary_vector || (isClean ? 'Safe' : 'Active Threat'))}</span>
+      </div>
+      <p class="attacker-intent-desc">${escapeHtml(intent.description)}</p>
+      
+      <div class="attacker-intent-ev-title">🔍 Evidence Cited from Email:</div>
+      <div class="attacker-intent-ev-list">
+        ${(intent.evidence && intent.evidence.length) ? intent.evidence.map(ev => `
+          <div class="attacker-intent-ev-item">
+            <span style="color:var(--cyan); font-weight:700;">•</span>
+            <span>${escapeHtml(ev)}</span>
+          </div>
+        `).join('') : '<div class="attacker-intent-ev-item" style="color:var(--sub);">No adversarial triggers cited. Verified legitimate.</div>'}
+      </div>
+    </div>
+  `;
+}
+
 function renderAttackSurface(d){
+  // 1. Attacker Intent
+  renderAttackerIntent(d);
+
   const gridEl = document.getElementById('attackSurfaceGrid');
   const badgeEl = document.getElementById('detectedVectorsBadge');
   const whatHappenEl = document.getElementById('whatCanHappenText');
@@ -2867,7 +2941,7 @@ function renderAttackSurface(d){
     badgeEl.className = detectedVectors.length > 0 ? 'badge crit' : 'badge low';
   }
 
-  // 1. Threat Surface Map Grid - Render only detected or active vectors
+  // 2. Attack Surface Map Grid - Render only detected or active vectors
   if(gridEl){
     if(!detectedVectors.length){
       gridEl.innerHTML = `
@@ -2902,12 +2976,12 @@ function renderAttackSurface(d){
     }
   }
 
-  // 2. What Can Happen
+  // 3. What Can Happen
   if(whatHappenEl){
     whatHappenEl.textContent = d.what_can_happen || "Standard email interactions carry minimal risk for verified legitimate messages.";
   }
 
-  // 3. What Should I Do Now
+  // 4. What Should I Do Now
   if(whatToDoEl){
     const steps = d.what_to_do_now || [
       "Do NOT click any links, open attachments, or reply to the sender.",
@@ -2922,7 +2996,7 @@ function renderAttackSurface(d){
     `).join('');
   }
 
-  // 4. Containment Playbooks Setup
+  // 5. Containment Playbooks Setup
   activeContainmentPlaybooks = d.containment_playbooks || {};
   activeBaselineRisk = (d.extracted_features && d.extracted_features.risk_score !== undefined) ? d.extracted_features.risk_score : (d.risk_level === 'Low' ? 12.0 : 75.0);
 
@@ -2931,6 +3005,7 @@ function renderAttackSurface(d){
   if(detectedVectors.some(v => v.key === 'password')) defaultAction = 'entered_password';
   else if(detectedVectors.some(v => v.key === 'otp')) defaultAction = 'entered_otp';
   else if(detectedVectors.some(v => v.key === 'payment')) defaultAction = 'made_payment';
+  else if(detectedVectors.some(v => v.key === 'sensitive_info' || v.key === 'sensitive_data')) defaultAction = 'shared_sensitive_data';
   else if(detectedVectors.some(v => v.key === 'attachment')) defaultAction = 'opened_attachment';
   else if(detectedVectors.some(v => v.key === 'link')) defaultAction = 'clicked_link';
 
