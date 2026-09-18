@@ -282,11 +282,59 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .score-value{position:relative; font-size:26px; font-weight:800; text-align:center;}
 .score-value span{font-size:11px; display:block; color:var(--sub); font-weight:600;}
 
-/* TOAST NOTICE */
-#toastNotice{position:fixed; bottom:24px; right:24px; background:#0f172a; border:1px solid var(--cyan); color:var(--text); padding:12px 18px; border-radius:8px; font-size:13px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; gap:10px; transform:translateY(100px); opacity:0; transition:all .25s cubic-bezier(0.4, 0, 0.2, 1);}
-#toastNotice.show{transform:translateY(0); opacity:1;}
+/* ATTACK SURFACE & ACTIVE PROTECTION */
+.attack-surface-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; margin-top:12px;}
+.surface-card{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; transition:all .2s ease; position:relative; overflow:hidden;}
+.surface-card:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.surface-card.crit{border-color:rgba(239,68,68,0.4); background:linear-gradient(135deg, rgba(239,68,68,0.08), rgba(17,23,38,0.95));}
+.surface-card.high{border-color:rgba(245,158,11,0.4); background:linear-gradient(135deg, rgba(245,158,11,0.08), rgba(17,23,38,0.95));}
+.surface-card.med{border-color:rgba(59,130,246,0.35); background:linear-gradient(135deg, rgba(59,130,246,0.06), rgba(17,23,38,0.95));}
+.surface-card.low{border-color:rgba(34,197,94,0.35); background:linear-gradient(135deg, rgba(34,197,94,0.06), rgba(17,23,38,0.95));}
 
-@media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid,.scan-stage-row,.shield-command-grid{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
+.surface-card-head{display:flex; justify-content:space-between; align-items:center;}
+.surface-card-icon{font-size:22px;}
+.surface-card-title{font-size:13.5px; font-weight:700; color:var(--text); margin-top:2px;}
+.surface-blast-radius{color:#cbd5e1; font-size:11.5px; line-height:1.5; margin-top:4px;}
+.surface-trigger{color:var(--sub); font-size:11px; margin-top:4px; font-style:italic;}
+.surface-evidence-pill{background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-size:10.5px; color:var(--cyan); margin-top:auto;}
+
+/* WHAT CAN HAPPEN & WHAT SHOULD I DO NOW */
+.what-can-happen-card{background:linear-gradient(135deg, rgba(239,68,68,0.08), rgba(17,23,38,0.95)); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:18px; margin-top:16px;}
+.what-to-do-card{background:linear-gradient(135deg, rgba(34,211,238,0.06), rgba(17,23,38,0.95)); border:1px solid rgba(34,211,238,0.3); border-radius:12px; padding:18px; margin-top:16px;}
+.protection-step{display:flex; gap:12px; align-items:flex-start; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);}
+.protection-step:last-child{border-bottom:none;}
+.step-number-badge{width:22px; height:22px; border-radius:50%; background:rgba(34,211,238,0.18); border:1px solid var(--cyan); color:var(--cyan); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+
+/* I ALREADY INTERACTED - EMERGENCY CONTAINMENT */
+.containment-panel{background:linear-gradient(135deg, rgba(17,24,39,0.98), rgba(13,18,32,0.98)); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-top:18px; box-shadow:0 12px 35px rgba(0,0,0,0.5);}
+.containment-btn-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:10px; margin-top:14px;}
+.containment-btn{background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:12px 10px; text-align:center; cursor:pointer; transition:all .2s ease; display:flex; flex-direction:column; align-items:center; gap:6px;}
+.containment-btn:hover{border-color:var(--cyan); background:#1a233a; transform:translateY(-2px);}
+.containment-btn.active{border-color:var(--red); background:rgba(239,68,68,0.15); box-shadow:0 0 16px rgba(239,68,68,0.35); transform:scale(1.02);}
+.containment-btn.active .containment-btn-title{color:#fca5a5; font-weight:700;}
+.containment-btn-icon{font-size:22px;}
+.containment-btn-title{font-size:11.5px; color:var(--text); line-height:1.3;}
+
+.containment-details-box{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-top:16px; transition:all .25s ease;}
+.containment-step-card{background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:14px;}
+.containment-step-card b{font-size:13px; color:var(--text); display:block; margin-bottom:2px;}
+.containment-step-card p{color:var(--sub); font-size:12px; margin:0; line-height:1.45;}
+
+/* INTERACTION RISK SCORE METER */
+.interaction-meter-box{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:14px;}
+.interaction-bar-track{width:100%; height:10px; background:#1c2438; border-radius:5px; overflow:hidden; position:relative; margin-top:8px;}
+.interaction-bar-fill{height:100%; border-radius:5px; transition:width .5s ease, background .3s;}
+
+/* INCIDENT TIMELINE */
+.timeline-container{display:flex; flex-direction:column; gap:10px; margin-top:14px;}
+.timeline-event-item{display:flex; gap:14px; align-items:flex-start; background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:11px 14px;}
+.timeline-step-dot{width:12px; height:12px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); margin-top:3px; flex-shrink:0;}
+.timeline-step-dot.done{background:var(--green); box-shadow:0 0 10px var(--green);}
+.timeline-step-dot.alert{background:var(--red); box-shadow:0 0 10px var(--red);}
+.timeline-event-body b{font-size:12.5px; color:var(--text); display:block;}
+.timeline-event-body span{color:var(--sub); font-size:11.5px; line-height:1.4;}
+
+@media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid,.scan-stage-row,.shield-command-grid,.attack-surface-grid,.containment-btn-grid{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
 </style>
 </head>
 <body>
@@ -739,6 +787,133 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
       </div>
 
       <div id="verdictBanner" class="verdict-banner"></div>
+
+      <!-- ATTACK SURFACE DETECTION & THREAT SURFACE MAP -->
+      <div class="card" style="margin-top:16px;" id="attackSurfaceCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🎯 Attack Surface &amp; Threat Surface Map</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Identifies user actions that can trigger threat activation and their blast radius.</p>
+          </div>
+          <span class="badge crit" id="detectedVectorsBadge">0 Active Vectors</span>
+        </div>
+        <div class="attack-surface-grid" id="attackSurfaceGrid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- WHAT CAN HAPPEN & WHAT SHOULD I DO NOW -->
+      <div class="grid2" style="margin-top:16px;">
+        <div class="what-can-happen-card">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span style="font-size:20px;">⚠️</span>
+            <b style="font-size:14px; color:var(--red);">What Can Happen? (Blast Radius &amp; Threat Impact)</b>
+          </div>
+          <p id="whatCanHappenText" style="color:#e2e8f0; font-size:12.5px; line-height:1.6; margin:0;"></p>
+        </div>
+
+        <div class="what-to-do-card">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span style="font-size:20px;">🛡️</span>
+            <b style="font-size:14px; color:var(--cyan);">What Should I Do Now? (Immediate Active Protection)</b>
+          </div>
+          <div id="whatToDoNowList"></div>
+        </div>
+      </div>
+
+      <!-- I ALREADY INTERACTED - EMERGENCY CONTAINMENT -->
+      <div class="containment-panel" id="containmentPanel">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15.5px; color:var(--red); display:flex; align-items:center; gap:8px;">
+              <span>🚨 I Already Interacted — Emergency Incident Containment</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Select the action you performed to generate instant, step-by-step incident containment procedures.</p>
+          </div>
+          <span class="badge crit">Active Response Protocol</span>
+        </div>
+
+        <div class="containment-btn-grid" id="containmentBtnGrid">
+          <div class="containment-btn" id="cbtn-opened" onclick="selectContainmentAction('opened')">
+            <span class="containment-btn-icon">📩</span>
+            <span class="containment-btn-title">Opened Email</span>
+          </div>
+          <div class="containment-btn active" id="cbtn-clicked_link" onclick="selectContainmentAction('clicked_link')">
+            <span class="containment-btn-icon">🔗</span>
+            <span class="containment-btn-title">Clicked Link</span>
+          </div>
+          <div class="containment-btn" id="cbtn-opened_attachment" onclick="selectContainmentAction('opened_attachment')">
+            <span class="containment-btn-icon">📎</span>
+            <span class="containment-btn-title">Opened Attachment</span>
+          </div>
+          <div class="containment-btn" id="cbtn-entered_password" onclick="selectContainmentAction('entered_password')">
+            <span class="containment-btn-icon">🔐</span>
+            <span class="containment-btn-title">Entered Password</span>
+          </div>
+          <div class="containment-btn" id="cbtn-entered_otp" onclick="selectContainmentAction('entered_otp')">
+            <span class="containment-btn-icon">🔑</span>
+            <span class="containment-btn-title">Entered OTP / 2FA</span>
+          </div>
+          <div class="containment-btn" id="cbtn-made_payment" onclick="selectContainmentAction('made_payment')">
+            <span class="containment-btn-icon">💳</span>
+            <span class="containment-btn-title">Made Payment</span>
+          </div>
+          <div class="containment-btn" id="cbtn-shared_sensitive_data" onclick="selectContainmentAction('shared_sensitive_data')">
+            <span class="containment-btn-icon">📝</span>
+            <span class="containment-btn-title">Shared Sensitive Data</span>
+          </div>
+        </div>
+
+        <!-- Containment Playbook Active Drawer -->
+        <div class="containment-details-box" id="containmentDetailsBox">
+          <div class="row-between" style="margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px;">
+            <div>
+              <b id="activeContainmentTitle" style="font-size:15px; color:var(--cyan);">Containment Playbook: Clicked Embedded Link</b>
+              <p id="activeContainmentDesc" class="sub" style="font-size:12px; margin-top:2px; margin-bottom:0;">Follow these mandatory containment actions immediately to isolate potential endpoint compromise.</p>
+            </div>
+            <div style="text-align:right;">
+              <span class="sub" style="font-size:10.5px;">ESCALATED RISK POSTURE</span>
+              <div id="escalatedRiskBadge" style="font-size:18px; font-weight:800; color:var(--red);">85.0%</div>
+            </div>
+          </div>
+
+          <!-- Interaction Risk Score Visual Meter -->
+          <div class="interaction-meter-box">
+            <div class="row-between" style="font-size:12px;">
+              <span>Baseline Inbound Risk Score: <b id="meterBaselineScore" style="color:var(--amber);">75%</b></span>
+              <span>Post-Interaction Escalated Score: <b id="meterEscalatedScore" style="color:var(--red);">95%</b></span>
+            </div>
+            <div class="interaction-bar-track">
+              <div class="interaction-bar-fill" id="meterBarFill" style="width:85%; background:linear-gradient(90deg, var(--amber), var(--red));"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;" id="containmentStepsList">
+            <!-- Dynamic steps -->
+          </div>
+
+          <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <span class="sub" style="font-size:11.5px;">🔒 Incident telemetry logged. Inform your designated Incident Response Commander.</span>
+            <button class="btn-primary" style="background:var(--red); border-color:var(--red);" onclick="showToast('Incident response protocol acknowledged and containment logged.');">✓ Acknowledge &amp; Mark Contained</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REAL INCIDENT TIMELINE -->
+      <div class="card" style="margin-top:16px;">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan);">⏱️ Incident Verification &amp; Defense Timeline</h4>
+            <p class="sub" style="margin-bottom:0;">Real-time chronological log of authentication, forensic, and containment events.</p>
+          </div>
+          <span class="badge low">Zero-Trust Armed</span>
+        </div>
+        <div class="timeline-container" id="incidentTimelineContainer">
+          <!-- Dynamic timeline items -->
+        </div>
+      </div>
 
       <!-- ADAPTIVE AI USER FEEDBACK LOOP -->
       <div class="feedback-box" id="reportFeedbackBox">
@@ -2194,6 +2369,178 @@ function renderEvidenceMap(rawText, evidenceItems){
   }
 }
 
+// --- ATTACK SURFACE & ACTIVE PROTECTION LOGIC ---
+let activeContainmentPlaybooks = {};
+let activeBaselineRisk = 75.0;
+
+function renderAttackSurface(d){
+  const gridEl = document.getElementById('attackSurfaceGrid');
+  const badgeEl = document.getElementById('detectedVectorsBadge');
+  const whatHappenEl = document.getElementById('whatCanHappenText');
+  const whatToDoEl = document.getElementById('whatToDoNowList');
+  const timelineEl = document.getElementById('incidentTimelineContainer');
+
+  const vectors = d.attack_surface_vectors || [];
+  const detectedVectors = vectors.filter(v => v.detected);
+
+  if(badgeEl){
+    badgeEl.textContent = `${detectedVectors.length} Active Vectors`;
+    badgeEl.className = detectedVectors.length > 0 ? 'badge crit' : 'badge low';
+  }
+
+  // 1. Threat Surface Map Grid - Render only detected or active vectors
+  if(gridEl){
+    if(!detectedVectors.length){
+      gridEl.innerHTML = `
+        <div class="surface-card low" style="grid-column:1/-1;">
+          <div class="surface-card-head">
+            <span class="surface-card-icon">🛡️</span>
+            <span class="badge low">ZERO ACTIVE VECTORS</span>
+          </div>
+          <div class="surface-card-title">Minimal Attack Surface Detected</div>
+          <div class="surface-blast-radius">This email contains no detected action-activated attack vectors, weaponized payloads, or deceptive portals.</div>
+          <div class="surface-trigger">Standard safe reading in protected email client.</div>
+          <div class="surface-evidence-pill">✓ Cryptographically clean &amp; low anomaly score</div>
+        </div>
+      `;
+    } else {
+      gridEl.innerHTML = detectedVectors.map(v => {
+        const sevCls = (v.risk_level === 'CRITICAL') ? 'crit' : ((v.risk_level === 'HIGH') ? 'high' : ((v.risk_level === 'MEDIUM') ? 'med' : 'low'));
+        const badgeCls = (v.risk_level === 'CRITICAL') ? 'crit' : ((v.risk_level === 'HIGH') ? 'high' : ((v.risk_level === 'MEDIUM') ? 'high' : 'low'));
+        return `
+          <div class="surface-card ${sevCls}">
+            <div class="surface-card-head">
+              <span class="surface-card-icon">${v.icon || '⚠️'}</span>
+              <span class="badge ${badgeCls}">${v.risk_level} RISK</span>
+            </div>
+            <div class="surface-card-title">${escapeHtml(v.action_title)}</div>
+            <div class="surface-blast-radius">${escapeHtml(v.blast_radius)}</div>
+            <div class="surface-trigger"><b>Trigger:</b> ${escapeHtml(v.trigger_mechanism)}</div>
+            ${v.evidence ? `<div class="surface-evidence-pill">${escapeHtml(v.evidence)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 2. What Can Happen
+  if(whatHappenEl){
+    whatHappenEl.textContent = d.what_can_happen || "Standard email interactions carry minimal risk for verified legitimate messages.";
+  }
+
+  // 3. What Should I Do Now
+  if(whatToDoEl){
+    const steps = d.what_to_do_now || [
+      "Do NOT click any links, open attachments, or reply to the sender.",
+      "Verify the sender's identity through secondary communication channels.",
+      "Report email to your organization's SOC / Security Team."
+    ];
+    whatToDoEl.innerHTML = steps.map((step, idx) => `
+      <div class="protection-step">
+        <div class="step-number-badge">${idx + 1}</div>
+        <div style="font-size:12px; color:#cbd5e1; line-height:1.45;">${escapeHtml(step)}</div>
+      </div>
+    `).join('');
+  }
+
+  // 4. Containment Playbooks Setup
+  activeContainmentPlaybooks = d.containment_playbooks || {};
+  activeBaselineRisk = (d.extracted_features && d.extracted_features.risk_score !== undefined) ? d.extracted_features.risk_score : (d.risk_level === 'Low' ? 12.0 : 75.0);
+
+  // Auto-select most relevant vector if detected, default to 'clicked_link' or 'opened'
+  let defaultAction = 'opened';
+  if(detectedVectors.some(v => v.key === 'password')) defaultAction = 'entered_password';
+  else if(detectedVectors.some(v => v.key === 'otp')) defaultAction = 'entered_otp';
+  else if(detectedVectors.some(v => v.key === 'payment')) defaultAction = 'made_payment';
+  else if(detectedVectors.some(v => v.key === 'attachment')) defaultAction = 'opened_attachment';
+  else if(detectedVectors.some(v => v.key === 'link')) defaultAction = 'clicked_link';
+
+  selectContainmentAction(defaultAction);
+
+  // 5. Incident Timeline
+  if(timelineEl){
+    const timeline = d.incident_timeline || [];
+    if(!timeline.length){
+      timelineEl.innerHTML = `<div class="sub" style="font-size:12px; padding:8px;">Zero-trust telemetry logged for scan ${d.scan_id}.</div>`;
+    } else {
+      timelineEl.innerHTML = timeline.map(ev => {
+        const isDone = ev.status === 'COMPLETED';
+        const dotCls = isDone ? 'done' : (ev.status === 'TRIGGERED' ? 'alert' : '');
+        return `
+          <div class="timeline-event-item">
+            <div class="timeline-step-dot ${dotCls}"></div>
+            <div class="timeline-event-body" style="flex:1;">
+              <div class="row-between" style="margin-bottom:2px;">
+                <b>${escapeHtml(ev.phase)}</b>
+                <span class="sub" style="font-family:monospace; font-size:11px;">${escapeHtml(ev.timestamp_offset)}</span>
+              </div>
+              <span>${escapeHtml(ev.description)}</span>
+            </div>
+            <span class="badge ${isDone ? 'low' : 'high'}" style="font-size:9.5px;">${escapeHtml(ev.status)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+}
+
+function selectContainmentAction(actionKey){
+  // Highlight active button
+  document.querySelectorAll('.containment-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('cbtn-' + actionKey);
+  if(activeBtn) activeBtn.classList.add('active');
+
+  const titleEl = document.getElementById('activeContainmentTitle');
+  const descEl = document.getElementById('activeContainmentDesc');
+  const riskBadge = document.getElementById('escalatedRiskBadge');
+  const meterBase = document.getElementById('meterBaselineScore');
+  const meterEsc = document.getElementById('meterEscalatedScore');
+  const meterFill = document.getElementById('meterBarFill');
+  const stepsListEl = document.getElementById('containmentStepsList');
+
+  const playbook = activeContainmentPlaybooks[actionKey] || {
+    action_title: actionKey.replace(/_/g, ' ').toUpperCase(),
+    description: "Containment protocol initiated for user interaction.",
+    escalated_risk_score: Math.min(100.0, activeBaselineRisk + 20.0),
+    containment_steps: [
+      { order: 1, title: "Isolate Endpoint", action: "Disconnect device from internal network.", urgency: "IMMEDIATE" },
+      { order: 2, title: "Rotate Credentials", action: "Change passwords from a secondary clean device.", urgency: "IMMEDIATE" },
+      { order: 3, title: "Notify Security Team", action: "File an emergency incident report.", urgency: "HIGH" }
+    ]
+  };
+
+  if(titleEl) titleEl.textContent = `Containment Playbook: ${playbook.action_title}`;
+  if(descEl) descEl.textContent = playbook.description;
+  
+  const escScore = playbook.escalated_risk_score || 90.0;
+  if(riskBadge) riskBadge.textContent = `${escScore.toFixed(1)}%`;
+  if(meterBase) meterBase.textContent = `${Math.round(activeBaselineRisk)}%`;
+  if(meterEsc) meterEsc.textContent = `${escScore.toFixed(1)}%`;
+  if(meterFill){
+    meterFill.style.width = `${Math.min(100, Math.max(15, escScore))}%`;
+    meterFill.style.background = escScore >= 90 ? 'linear-gradient(90deg, var(--amber), var(--red))' : 'linear-gradient(90deg, var(--cyan), var(--amber))';
+  }
+
+  if(stepsListEl){
+    const steps = playbook.containment_steps || [];
+    stepsListEl.innerHTML = steps.map(s => {
+      const urgCls = s.urgency === 'IMMEDIATE' ? 'crit' : (s.urgency === 'HIGH' ? 'high' : 'med');
+      return `
+        <div class="containment-step-card">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:2px;">
+              <span class="badge ${urgCls}" style="font-size:9.5px;">STEP ${s.order} • ${s.urgency}</span>
+              <b>${escapeHtml(s.title)}</b>
+            </div>
+            <p>${escapeHtml(s.action)}</p>
+          </div>
+          <button class="btn-secondary" style="padding:6px 12px; font-size:11.5px; white-space:nowrap;" onclick="this.textContent='Done ✓'; this.style.color='var(--green)'; this.disabled=true;">Mark Done</button>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
 function renderApiReport(d, raw){
   activeScanData = d;
   const cls = d.risk_level === "Low" ? "clean" : (d.risk_level === "Elevated" ? "high" : "crit");
@@ -2243,6 +2590,9 @@ function renderApiReport(d, raw){
 
   // Render Evidence Map with Highlighting
   renderEvidenceMap(raw || d.raw_snippet || d.subject_preview, d.evidence_items);
+
+  // Render Attack Surface Detection & Active Protection
+  renderAttackSurface(d);
 
   // Reset feedback buttons
   const btnSafe = document.getElementById('btnFbSafe');

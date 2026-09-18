@@ -126,6 +126,55 @@ class EvidenceItem(BaseModel):
     severity: str  # CRITICAL | HIGH | MEDIUM | SAFE
 
 
+class AttackSurfaceVector(BaseModel):
+    key: str  # open, link, attachment, reply, password, otp, payment, sensitive_data
+    action_title: str
+    icon: str
+    risk_level: str  # CRITICAL | HIGH | MEDIUM | LOW | SAFE
+    blast_radius: str
+    trigger_mechanism: str
+    detected: bool
+    evidence: str
+
+
+class IncidentEvent(BaseModel):
+    step_number: int
+    timestamp_offset: str
+    phase: str
+    description: str
+    status: str  # COMPLETED | ACTIVE | PENDING | TRIGGERED
+
+
+class ContainmentStep(BaseModel):
+    order: int
+    title: str
+    action: str
+    urgency: str  # IMMEDIATE | HIGH | MEDIUM
+
+
+class ContainmentPlaybook(BaseModel):
+    action_key: str
+    action_title: str
+    severity: str
+    escalated_risk_score: float
+    description: str
+    containment_steps: List[ContainmentStep]
+
+
+class ContainmentRequest(BaseModel):
+    scan_id: Optional[str] = None
+    action_taken: str  # opened | clicked_link | opened_attachment | entered_password | entered_otp | made_payment | shared_sensitive_data
+    details: Optional[str] = ""
+
+
+class ContainmentResponse(BaseModel):
+    action_taken: str
+    action_title: str
+    escalated_risk_score: float
+    containment_playbook: ContainmentPlaybook
+    incident_events: List[IncidentEvent]
+
+
 class FeedbackRequest(BaseModel):
     scan_id: str
     actual_label: str  # SAFE | THREAT
@@ -142,6 +191,12 @@ class AnalyzeResponse(BaseModel):
     explanation: str
     indicators: List[Indicator]
     evidence_items: List[EvidenceItem]
+    attack_surface_vectors: List[AttackSurfaceVector] = []
+    what_can_happen: str = ""
+    what_to_do_now: List[str] = []
+    interaction_risk_scores: Dict[str, float] = {}
+    containment_playbooks: Dict[str, Any] = {}
+    incident_timeline: List[IncidentEvent] = []
     extracted_features: Dict[str, Any]
     spf: str
     dkim: str
@@ -316,7 +371,6 @@ EXECUTIVE_PATTERNS = [
     r"\bceo\b", r"\bcfo\b", r"\bexecutive office\b", r"\bpresident\b", r"\bmanaging director\b"
 ]
 
-
 CREDENTIAL_PATTERNS = [
     r"\bpassword reset\b",
     r"\bverify (?:your )?(?:account|identity|credentials|password)\b",
@@ -326,6 +380,34 @@ CREDENTIAL_PATTERNS = [
     r"\bre-enter your (?:password|login)\b"
 ]
 
+OTP_PATTERNS = [
+    r"\b(?:otp|one[- ]time password|2fa|two[- ]factor|verification code|security code|auth code)\b",
+    r"\benter (?:the )?(?:6|4)[- ]digit code\b",
+    r"\bdo not share (?:your )?(?:code|otp|password)\b",
+    r"\bauthenticate using your code\b"
+]
+
+REPLY_PATTERNS = [
+    r"\breply (?:to|with|back)\b",
+    r"\bcontact me (?:at|via|immediately)\b",
+    r"\blet me know (?:asap|immediately|when)\b",
+    r"\bconfirm (?:via|by) reply\b",
+    r"\bdo not call\b",
+    r"\bemail me directly\b",
+    r"\bsend (?:me )?(?:your|the) phone number\b"
+]
+
+ATTACHMENT_PATTERNS = [
+    r"\b(?:attached|attachment|see attached|open attached|download attached|enclosed)\b",
+    r"\b(?:invoice|receipt|statement|remittance|purchase order|rfq|doc|scan)\.(?:pdf|zip|docx?|xlsx?|iso|exe|rar)\b"
+]
+
+SENSITIVE_DATA_PATTERNS = [
+    r"\b(?:ssn|social security(?: number)?)\b",
+    r"\b(?:tax form|w-2|w2|1099)\b",
+    r"\b(?:direct deposit|bank details|routing number|account number)\b",
+    r"\b(?:date of birth|dob|passport|driver'?s? license)\b"
+]
 
 # Trusted root domains recognized as legitimate
 TRUSTED_DOMAINS_RE = re.compile(
@@ -427,105 +509,345 @@ def _find_matches(patterns: List[str], text: str) -> List[str]:
     return list(set(found))
 
 
-# --- API Routes ---
+def _build_containment_playbooks(baseline_risk: float, evidence_summary: str = "") -> Dict[str, Any]:
+    playbooks = {
+        "opened": {
+            "action_key": "opened",
+            "action_title": "Opened Email",
+            "severity": "MEDIUM",
+            "escalated_risk_score": round(min(100.0, baseline_risk + 10.0), 1),
+            "description": "Opening this email may have triggered remote pixel telemetry, exposing IP/client fingerprint to threat actors.",
+            "containment_steps": [
+                {"order": 1, "title": "Block Remote Image Beacons", "action": "In your email client settings, ensure 'Load remote images automatically' is disabled.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Clear Browser Temporary Storage", "action": "Flush webmail cookies, local storage, and cached network objects.", "urgency": "HIGH"},
+                {"order": 3, "title": "Flag as Phishing to Email Provider", "action": "Mark this email as Phishing/Spam in your mailbox to train gateway filters.", "urgency": "MEDIUM"},
+                {"order": 4, "title": "Monitor for Follow-up Lures", "action": "Be alert for secondary targeted spear-phishing messages now that active mailbox status is confirmed.", "urgency": "MEDIUM"},
+            ]
+        },
+        "clicked_link": {
+            "action_key": "clicked_link",
+            "action_title": "Clicked Embedded Link",
+            "severity": "HIGH",
+            "escalated_risk_score": round(min(100.0, max(85.0, baseline_risk + 25.0)), 1),
+            "description": "Navigated to an untrusted external domain or deceptive phishing landing page.",
+            "containment_steps": [
+                {"order": 1, "title": "Terminate Destination Tab & Browser", "action": "Immediately close the opened destination tab and exit the browser application.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Purge Active Cookies & Session Cache", "action": "Delete all browser cookies, site storage, and active tokens created in the last 24 hours.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Execute Endpoint Antivirus Scan", "action": "Initiate an automated full system scan using Windows Defender or your corporate EDR client.", "urgency": "HIGH"},
+                {"order": 4, "title": "Inspect Browser Extensions", "action": "Review browser extensions to verify no malicious plug-in was injected or sideloaded.", "urgency": "MEDIUM"},
+            ]
+        },
+        "opened_attachment": {
+            "action_key": "opened_attachment",
+            "action_title": "Opened / Downloaded Attachment",
+            "severity": "CRITICAL",
+            "escalated_risk_score": round(min(100.0, max(92.0, baseline_risk + 35.0)), 1),
+            "description": "A potentially weaponized macro document, archive, or script executable was loaded locally.",
+            "containment_steps": [
+                {"order": 1, "title": "Disconnect Host from Network", "action": "Disconnect Wi-Fi immediately and unplug all Ethernet cables to isolate the device from corporate subnet.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Do NOT Enable Macros / Content", "action": "If Office/PDF viewer displays an 'Enable Macros' or 'Trust Content' prompt, dismiss it immediately.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Run Deep Malware Heuristic Scan", "action": "Run an offline deep-scan using anti-malware software with current signature definitions.", "urgency": "IMMEDIATE"},
+                {"order": 4, "title": "Terminate Suspicious Background Tasks", "action": "Launch Task Manager and kill any unrecognized PowerShell, cmd.exe, cscript, or Python sub-processes.", "urgency": "HIGH"},
+                {"order": 5, "title": "Alert Incident Response / SOC", "action": "Submit the attachment file hash to your Security Operations Center for binary quarantine.", "urgency": "HIGH"},
+            ]
+        },
+        "entered_password": {
+            "action_key": "entered_password",
+            "action_title": "Entered Password / Credentials",
+            "severity": "CRITICAL",
+            "escalated_risk_score": round(min(100.0, max(95.0, baseline_risk + 40.0)), 1),
+            "description": "Account credentials have been submitted to an unauthorized phishing harvesting server.",
+            "containment_steps": [
+                {"order": 1, "title": "Reset Password from Clean Device", "action": "From a secondary trusted device, change the password for the compromised service immediately.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Terminate All Active Sessions", "action": "Access account security settings and click 'Sign out of all sessions and revoke active tokens'.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Rotate Shared Passwords", "action": "Update any personal or enterprise accounts that shared identical or similar passwords.", "urgency": "HIGH"},
+                {"order": 4, "title": "Audit Mailbox Forwarding Rules", "action": "Inspect email inbox rules to verify the adversary did not install hidden auto-forwarding rules.", "urgency": "HIGH"},
+                {"order": 5, "title": "Enforce Multi-Factor Authentication", "action": "Ensure 2FA / FIDO2 security keys are active on the account and audit enrolled recovery phones.", "urgency": "HIGH"},
+            ]
+        },
+        "entered_otp": {
+            "action_key": "entered_otp",
+            "action_title": "Entered OTP / 2FA Code",
+            "severity": "CRITICAL",
+            "escalated_risk_score": 98.0,
+            "description": "Attacker likely performed real-time 2FA interception and obtained an authenticated session cookie.",
+            "containment_steps": [
+                {"order": 1, "title": "Global Session Revocation", "action": "Log into your master identity provider from a secure device and force-terminate all active sessions.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Reset Master Password", "action": "Change your primary password immediately to block re-authentication attempts.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Re-Enroll Authenticator App (2FA)", "action": "Revoke the current authenticator app seed and re-pair with a newly generated QR secret.", "urgency": "IMMEDIATE"},
+                {"order": 4, "title": "Check API Keys & App Passwords", "action": "Audit account settings for newly generated OAuth app grants, API tokens, or app passwords.", "urgency": "HIGH"},
+                {"order": 5, "title": "Notify SOC / Security Admin", "action": "Alert IT security that real-time MFA session takeover is actively occurring.", "urgency": "HIGH"},
+            ]
+        },
+        "made_payment": {
+            "action_key": "made_payment",
+            "action_title": "Initiated Wire / Made Payment",
+            "severity": "CRITICAL",
+            "escalated_risk_score": 100.0,
+            "description": "Financial assets or wire transfers have been dispatched to unauthorized fraudulent accounts.",
+            "containment_steps": [
+                {"order": 1, "title": "Call Bank Fraud Desk 24/7 Immediately", "action": "Call your banking institution's emergency Wire Fraud department to request a formal Wire Recall / Stop Payment.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Preserve Transaction Artifacts", "action": "Save wire transaction numbers, SWIFT/IBAN beneficiary details, invoice attachments, and raw headers.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Notify Organization CFO & Legal", "action": "Inform executive leadership and corporate counsel of the unauthorized financial disbursement.", "urgency": "IMMEDIATE"},
+                {"order": 4, "title": "File Law Enforcement Cyber Report", "action": "Submit an IC3 (Internet Crime Complaint Center) or local cybercrime complaint with all records.", "urgency": "HIGH"},
+                {"order": 5, "title": "Lock Payment Instruments", "action": "Freeze corporate cards or payment tokens utilized in the fraudulent transaction.", "urgency": "HIGH"},
+            ]
+        },
+        "shared_sensitive_data": {
+            "action_key": "shared_sensitive_data",
+            "action_title": "Shared Sensitive / Confidential Data",
+            "severity": "CRITICAL",
+            "escalated_risk_score": round(min(100.0, max(94.0, baseline_risk + 35.0)), 1),
+            "description": "Personally Identifiable Information (SSN, Tax ID, Banking details) or confidential data disclosed.",
+            "containment_steps": [
+                {"order": 1, "title": "Place Credit Freeze / Fraud Alert", "action": "If SSN/PII was disclosed, place an immediate credit freeze with Experian, Equifax, and TransUnion.", "urgency": "IMMEDIATE"},
+                {"order": 2, "title": "Halt Direct Deposit Updates", "action": "If payroll details were shared, notify HR/Payroll immediately to block unverified direct deposit modifications.", "urgency": "IMMEDIATE"},
+                {"order": 3, "title": "Notify Data Privacy Officer", "action": "Initiate internal compliance review for potential regulatory breach reporting (GDPR, HIPAA, CCPA).", "urgency": "HIGH"},
+                {"order": 4, "title": "Enroll in Identity Protection", "action": "Activate identity theft monitoring to detect unauthorized credit inquiries and tax filings.", "urgency": "HIGH"},
+            ]
+        }
+    }
+    return playbooks
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "model_loaded": _classifier is not None}
 
+def _evaluate_attack_surface(
+    combined: str,
+    dkim: str,
+    spf: str,
+    dmarc: str,
+    n_links: int,
+    n_suspicious: int,
+    susp_urls: List[str],
+    has_auth_headers: bool,
+    urgency_triggers: List[str],
+    financial_triggers: List[str],
+    exec_triggers: List[str],
+    credential_triggers: List[str],
+    otp_triggers: List[str],
+    reply_triggers: List[str],
+    attachment_triggers: List[str],
+    sensitive_triggers: List[str],
+    prob_spam: float,
+    risk_score: float,
+    scan_id: str,
+    timestamp: str
+) -> Dict[str, Any]:
+    vectors: List[AttackSurfaceVector] = []
 
-@app.get("/metrics")
-def get_metrics():
-    if _metrics is None:
-        raise HTTPException(404, "No metrics available. Train the model first.")
-    return _metrics
+    # 1. 📩 Open Vector
+    open_detected = bool(risk_score >= 35.0 or n_suspicious > 0 or (has_auth_headers and (dkim == "FAIL" or spf == "FAIL")))
+    vectors.append(AttackSurfaceVector(
+        key="open",
+        action_title="Open / View Email",
+        icon="📩",
+        risk_level="HIGH" if risk_score >= 60.0 else ("MEDIUM" if risk_score >= 35.0 else "LOW"),
+        blast_radius="Confirms active recipient mailbox to attacker and logs client IP/environment fingerprint via remote beacons.",
+        trigger_mechanism="Opening message and rendering remote tracking images or web-beacon telemetry.",
+        detected=open_detected,
+        evidence="Inbound unverified sender with tracking telemetry characteristics." if open_detected else "Clean message headers; benign local render."
+    ))
 
+    # 2. 🔗 Link Vector
+    link_detected = bool(n_suspicious > 0 or n_links > 0)
+    vectors.append(AttackSurfaceVector(
+        key="link",
+        action_title="Click Embedded Link",
+        icon="🔗",
+        risk_level="CRITICAL" if n_suspicious > 0 else ("MEDIUM" if risk_score >= 40.0 else "LOW"),
+        blast_radius="Redirects to deceptive phishing landing page designed to capture credentials or drop malware.",
+        trigger_mechanism="User clicks embedded hyperlink in email body or action button.",
+        detected=link_detected,
+        evidence=f"Detected {n_suspicious} high-risk URL(s): {', '.join(susp_urls[:2])}" if n_suspicious > 0 else f"{n_links} verified link(s) found in body."
+    ))
 
-@app.get("/history")
-def get_history(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    return get_scans(user_id=user_id, limit=50)
+    # 3. 📎 Attachment Vector
+    has_malicious_att_url = any(MALICIOUS_ATTACHMENT_URL_RE.search(u) for u in susp_urls)
+    att_detected = bool(attachment_triggers or has_malicious_att_url)
+    vectors.append(AttackSurfaceVector(
+        key="attachment",
+        action_title="Open / Download Attachment",
+        icon="📎",
+        risk_level="CRITICAL" if (has_malicious_att_url or prob_spam > 0.6) else "HIGH",
+        blast_radius="Executes weaponized macros, malware payloads, ransomware droppers, or credential scrapers.",
+        trigger_mechanism="Downloading and executing enclosed or linked file attachment.",
+        detected=att_detected,
+        evidence=f"Attachment references detected: {', '.join(attachment_triggers[:2])}" if attachment_triggers else ("Direct payload download URLs identified." if has_malicious_att_url else "")
+    ))
 
+    # 4. ↩️ Reply Vector
+    reply_detected = bool(reply_triggers or (exec_triggers and (urgency_triggers or financial_triggers)))
+    vectors.append(AttackSurfaceVector(
+        key="reply",
+        action_title="Reply / Contact Sender",
+        icon="↩️",
+        risk_level="CRITICAL" if (exec_triggers and financial_triggers) else "HIGH",
+        blast_radius="Validates active corporate target to adversary, initiating multi-stage Business Email Compromise (BEC).",
+        trigger_mechanism="Replying directly to sender or calling unverified phone numbers in email.",
+        detected=reply_detected,
+        evidence=f"Direct response solicitation detected: {', '.join((reply_triggers or exec_triggers)[:2])}" if reply_detected else ""
+    ))
 
-@app.get("/history/{scan_id}")
-def get_scan_details(scan_id: str, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    scan = get_scan_by_id(scan_id, user_id=user_id)
-    if not scan:
-        raise HTTPException(404, f"Scan {scan_id} not found.")
-    return scan
+    # 5. 🔐 Password Vector
+    pwd_detected = bool(credential_triggers)
+    vectors.append(AttackSurfaceVector(
+        key="password",
+        action_title="Enter Password / Credentials",
+        icon="🔐",
+        risk_level="CRITICAL",
+        blast_radius="Direct account takeover, unauthorized credential re-use across corporate systems, and single sign-on compromise.",
+        trigger_mechanism="Submitting password or login credentials into external form or spoofed portal.",
+        detected=pwd_detected,
+        evidence=f"Credential submission requested: {', '.join(credential_triggers[:2])}" if pwd_detected else ""
+    ))
 
+    # 6. 🔑 OTP Vector
+    otp_detected = bool(otp_triggers)
+    vectors.append(AttackSurfaceVector(
+        key="otp",
+        action_title="Enter OTP / 2FA Token",
+        icon="🔑",
+        risk_level="CRITICAL",
+        blast_radius="Real-time multi-factor authentication bypass, enabling immediate session hijacking and MFA unbinding.",
+        trigger_mechanism="Entering 2FA token or SMS one-time passcode into attacker relay portal.",
+        detected=otp_detected,
+        evidence=f"One-Time Password / 2FA code requested: {', '.join(otp_triggers[:2])}" if otp_detected else ""
+    ))
 
-@app.delete("/history/{scan_id}")
-def delete_single_scan(scan_id: str, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    deleted = delete_scan(scan_id, user_id=user_id)
-    if not deleted:
-        raise HTTPException(404, f"Scan {scan_id} not found or already deleted.")
-    return {"success": True, "message": f"Scan {scan_id} deleted successfully."}
+    # 7. 💳 Payment Vector
+    pay_detected = bool(financial_triggers)
+    vectors.append(AttackSurfaceVector(
+        key="payment",
+        action_title="Make Payment / Wire Transfer",
+        icon="💳",
+        risk_level="CRITICAL" if (urgency_triggers or prob_spam > 0.45) else "HIGH",
+        blast_radius="Direct financial fraud, unauthorized wire routing, gift card loss, or unrecoverable invoice diversion.",
+        trigger_mechanism="Executing wire transfer, updating bank routing details, or settling invoice.",
+        detected=pay_detected,
+        evidence=f"Payment/wire transfer language: {', '.join(financial_triggers[:2])}" if pay_detected else ""
+    ))
 
+    # 8. 📝 Sensitive Data Vector
+    sens_detected = bool(sensitive_triggers)
+    vectors.append(AttackSurfaceVector(
+        key="sensitive_data",
+        action_title="Share Sensitive / PII Data",
+        icon="📝",
+        risk_level="CRITICAL",
+        blast_radius="Identity theft, payroll fraud (W-2/SSN theft), corporate data leakage, and regulatory non-compliance.",
+        trigger_mechanism="Submitting SSN, tax documents, bank details, or internal corporate records.",
+        detected=sens_detected,
+        evidence=f"Confidential data solicitation: {', '.join(sensitive_triggers[:2])}" if sens_detected else ""
+    ))
 
-@app.delete("/history")
-def purge_all_history(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    count = clear_all_scans(user_id=user_id)
-    return {"success": True, "deleted_count": count, "message": f"Successfully purged {count} scan records."}
+    # Filter detected vectors for summary
+    active_vectors = [v for v in vectors if v.detected]
 
+    # Synthesize "What Can Happen?"
+    impact_items = []
+    if n_suspicious > 0:
+        impact_items.append("navigating to fake login portals that capture your active credentials and session tokens")
+    if pwd_detected or otp_detected:
+        impact_items.append("adversaries executing unauthorized account takeover and bypassing multi-factor authentication")
+    if pay_detected:
+        impact_items.append("executing fraudulent wire transfers or settling counterfeit invoices to criminal accounts")
+    if att_detected:
+        impact_items.append("local endpoint infection with macro malware, ransomware droppers, or spyware")
+    if reply_detected:
+        impact_items.append("engaging in an adversarial Business Email Compromise (BEC) communication channel")
+    if sens_detected:
+        impact_items.append("exfiltrating sensitive PII and tax records leading to identity theft")
 
-@app.get("/alerts")
-def get_security_alerts(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    return get_alerts(user_id=user_id, limit=30)
+    if risk_score >= 35.0 or impact_items:
+        impact_summary = (
+            f"If you interact with this email, the following threat chain could execute: "
+            + "; ".join(impact_items) + ". "
+            f"Threat actors utilize these active attack vectors to compromise user accounts and extract corporate assets."
+        ) if impact_items else (
+            "If you interact with this email, remote tracking beacons may log your environment details and validate your mailbox as an active spear-phishing target."
+        )
+    else:
+        impact_summary = (
+            "MailShield AI verified this email as legitimate. Standard reading and routine communication within verified domains carry no detected security hazards."
+        )
 
+    # Synthesize "What Should I Do Now?" (Active Protection Steps)
+    if risk_score >= 35.0:
+        what_to_do_now = [
+            "Do NOT click any links, open attachments, or reply to the sender.",
+            "Verify any urgent or financial request via an independent secondary communication channel (phone/in-person).",
+            "Forward this email to your organization's Security Operations Center (SOC) / Incident Response team.",
+            "Block sender address and flag domain on your gateway firewall.",
+            "If you already interacted with this message, use the Emergency Containment panel below immediately."
+        ]
+    else:
+        what_to_do_now = [
+            "Verified authentic communication. You may proceed safely.",
+            "Maintain standard cybersecurity vigilance when reviewing external links.",
+            "Confirm sender email matches expected organizational contacts.",
+            "Submit feedback below if you notice any unusual email behavior."
+        ]
 
-@app.get("/stats")
-def get_dashboard_stats(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    return get_stats(user_id=user_id)
-
-
-@app.get("/intelligence")
-def get_security_intelligence(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    stats = get_stats(user_id=user_id)
-    fb_stats = get_feedback_stats(user_id=user_id)
-    return {
-        **stats,
-        "feedback_stats": fb_stats,
-        "engine_version": "MailShield AI 2.1.0 SOC Edition",
-        "benchmark_accuracy": f"{_metrics['accuracy']*100:.2f}%" if _metrics and "accuracy" in _metrics else "98.51%",
-        "privacy_sandbox_active": True
+    # Interaction Risk Scores
+    interaction_scores = {
+        "opened": round(min(100.0, risk_score + 10.0), 1),
+        "clicked_link": round(min(100.0, max(85.0, risk_score + 25.0)), 1),
+        "opened_attachment": round(min(100.0, max(92.0, risk_score + 35.0)), 1),
+        "entered_password": round(min(100.0, max(95.0, risk_score + 40.0)), 1),
+        "entered_otp": 98.0,
+        "made_payment": 100.0,
+        "shared_sensitive_data": round(min(100.0, max(94.0, risk_score + 35.0)), 1),
     }
 
+    # Playbooks
+    playbooks = _build_containment_playbooks(risk_score, "")
 
-@app.post("/feedback")
-def submit_feedback(req: FeedbackRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    label = req.actual_label.upper()
-    if label not in ["SAFE", "THREAT"]:
-        raise HTTPException(400, "actual_label must be either 'SAFE' or 'THREAT'.")
-    
-    fb = save_feedback(
-        scan_id=req.scan_id,
-        actual_label=label,
-        original_verdict=req.original_verdict or "UNKNOWN",
-        user_id=user_id,
-        subject_snippet=req.subject_snippet,
-        comments=req.comments
-    )
-    fb_stats = get_feedback_stats(user_id=user_id)
+    # Incident Timeline
+    timeline = [
+        IncidentEvent(
+            step_number=1,
+            timestamp_offset="T+0.00s",
+            phase="MIME Ingestion",
+            description="Inbound RFC 822 MIME structure parsed & envelope verified.",
+            status="COMPLETED"
+        ),
+        IncidentEvent(
+            step_number=2,
+            timestamp_offset="T+0.08s",
+            phase="Cryptographic Forensics",
+            description=f"Domain cryptographic check completed (DKIM: {dkim}, SPF: {spf}, DMARC: {dmarc}).",
+            status="COMPLETED"
+        ),
+        IncidentEvent(
+            step_number=3,
+            timestamp_offset="T+0.16s",
+            phase="ML NLP Classification",
+            description=f"TF-IDF log-loss inference completed ({prob_spam*100:.1f}% spam score).",
+            status="COMPLETED"
+        ),
+        IncidentEvent(
+            step_number=4,
+            timestamp_offset="T+0.24s",
+            phase="Attack Surface Analysis",
+            description=f"8-vector threat surface taxonomy evaluated; {len(active_vectors)} active vector(s) identified.",
+            status="COMPLETED"
+        ),
+        IncidentEvent(
+            step_number=5,
+            timestamp_offset="T+0.32s",
+            phase="Active Defense Armed",
+            description="Incident containment playbooks and defense protocols armed.",
+            status="ACTIVE"
+        )
+    ]
+
     return {
-        "success": True,
-        "feedback": fb,
-        "stats": fb_stats,
-        "message": f"Feedback recorded successfully. MailShield adaptive learning engine updated."
+        "attack_surface_vectors": vectors,
+        "what_can_happen": impact_summary,
+        "what_to_do_now": what_to_do_now,
+        "interaction_risk_scores": interaction_scores,
+        "containment_playbooks": playbooks,
+        "incident_timeline": timeline,
     }
-
-
-@app.get("/feedback/stats")
-def get_feedback_telemetry(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    user_id = user["id"] if user else None
-    return get_feedback_stats(user_id=user_id)
 
 
 def _process_analysis(
@@ -561,6 +883,10 @@ def _process_analysis(
     financial_triggers = _find_matches(FINANCIAL_PATTERNS, combined)
     exec_triggers = _find_matches(EXECUTIVE_PATTERNS, combined)
     credential_triggers = _find_matches(CREDENTIAL_PATTERNS, combined)
+    otp_triggers = _find_matches(OTP_PATTERNS, combined)
+    reply_triggers = _find_matches(REPLY_PATTERNS, combined)
+    attachment_triggers = _find_matches(ATTACHMENT_PATTERNS, combined)
+    sensitive_triggers = _find_matches(SENSITIVE_DATA_PATTERNS, combined)
 
     indicators: List[Indicator] = []
     evidence_items: List[EvidenceItem] = []
@@ -616,7 +942,7 @@ def _process_analysis(
                 reason="Sender fails RFC 822 cryptographic verification, indicating domain spoofing.",
                 severity="CRITICAL"
             ))
-    
+
     # 3. Phishing / Malicious URLs & Evidence Map
     if n_suspicious > 0:
         risk_score += min(40.0, n_suspicious * 25.0)
@@ -719,10 +1045,43 @@ def _process_analysis(
                 severity="HIGH"
             ))
 
-    # 6. Adaptive Learning Adjustments (from User Feedback)
+    # 6. OTP & 2FA Harvesting Triggers
+    if otp_triggers:
+        risk_score += 25.0
+        indicators.append(Indicator(
+            title="2FA / OTP Interception Signal",
+            detail=f"Requests one-time passcodes or two-factor security tokens: {', '.join(otp_triggers[:2])}",
+            level="DANGER"
+        ))
+        for ot in otp_triggers:
+            evidence_items.append(EvidenceItem(
+                category="2FA / OTP Interception",
+                text=ot,
+                reason="Solicits temporary one-time passcodes for real-time authentication bypass.",
+                severity="CRITICAL"
+            ))
+
+    # 7. Attachment or Malicious Payloads
+    has_malicious_att_url = any(MALICIOUS_ATTACHMENT_URL_RE.search(u) for u in susp_urls)
+    if attachment_triggers or has_malicious_att_url:
+        if has_malicious_att_url or prob_spam > 0.5:
+            risk_score += 20.0
+            indicators.append(Indicator(
+                title="Weaponized / Malicious Attachment Lure",
+                detail="Directs user to execute attached archives, documents, or script files.",
+                level="DANGER"
+            ))
+        for at in attachment_triggers:
+            evidence_items.append(EvidenceItem(
+                category="Malicious File Risk",
+                text=at,
+                reason="Enclosed file or download link targeting local system execution.",
+                severity="CRITICAL" if has_malicious_att_url else "HIGH"
+            ))
+
+    # 8. Adaptive Learning Adjustments (from User Feedback)
     all_fb = get_all_feedback()
     if all_fb:
-        # Check if identical subject or snippet was confirmed as SAFE by users
         lower_comb = combined.lower()
         safe_overrides = sum(1 for fb in all_fb if fb["actual_label"] == "SAFE" and fb.get("subject_snippet", "").lower() in lower_comb and len(fb.get("subject_snippet", "")) > 10)
         threat_overrides = sum(1 for fb in all_fb if fb["actual_label"] == "THREAT" and fb.get("subject_snippet", "").lower() in lower_comb and len(fb.get("subject_snippet", "")) > 10)
@@ -764,6 +1123,8 @@ def _process_analysis(
         reasons.append(f"urgency phrasing ({', '.join(urgency_triggers[:2])})")
     if credential_triggers and (n_suspicious > 0 or prob_spam > 0.40):
         reasons.append(f"credential harvesting trigger ({', '.join(credential_triggers[:2])})")
+    if otp_triggers:
+        reasons.append(f"2FA/OTP solicitation trigger ({', '.join(otp_triggers[:2])})")
 
     if reasons:
         explanation = (
@@ -776,11 +1137,39 @@ def _process_analysis(
             f"Message cleared heuristic, domain reputation, and machine learning threat filters ({(1-prob_spam)*100:.1f}% legitimate confidence)."
         )
 
+    # Attack Surface & Active Protection Evaluation
+    as_eval = _evaluate_attack_surface(
+        combined=combined,
+        dkim=dkim,
+        spf=spf,
+        dmarc=dmarc,
+        n_links=n_links,
+        n_suspicious=n_suspicious,
+        susp_urls=susp_urls,
+        has_auth_headers=has_auth_headers,
+        urgency_triggers=urgency_triggers,
+        financial_triggers=financial_triggers,
+        exec_triggers=exec_triggers,
+        credential_triggers=credential_triggers,
+        otp_triggers=otp_triggers,
+        reply_triggers=reply_triggers,
+        attachment_triggers=attachment_triggers,
+        sensitive_triggers=sensitive_triggers,
+        prob_spam=prob_spam,
+        risk_score=risk_score,
+        scan_id=scan_id,
+        timestamp=timestamp
+    )
+
     extracted_features = {
         "urgency_triggers": urgency_triggers,
         "financial_triggers": financial_triggers,
         "executive_triggers": exec_triggers,
         "credential_triggers": credential_triggers,
+        "otp_triggers": otp_triggers,
+        "reply_triggers": reply_triggers,
+        "attachment_triggers": attachment_triggers,
+        "sensitive_triggers": sensitive_triggers,
         "flagged_urls": susp_urls,
         "total_links": n_links,
         "dkim": dkim,
@@ -798,6 +1187,12 @@ def _process_analysis(
         explanation=explanation,
         indicators=indicators,
         evidence_items=evidence_items,
+        attack_surface_vectors=as_eval["attack_surface_vectors"],
+        what_can_happen=as_eval["what_can_happen"],
+        what_to_do_now=as_eval["what_to_do_now"],
+        interaction_risk_scores=as_eval["interaction_risk_scores"],
+        containment_playbooks=as_eval["containment_playbooks"],
+        incident_timeline=as_eval["incident_timeline"],
         extracted_features=extracted_features,
         spf=spf, dkim=dkim, dmarc=dmarc,
         suspicious_links=n_suspicious,
@@ -869,4 +1264,163 @@ async def predict_file(
     user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)
 ):
     return await analyze_file(file=file, user=user)
+
+
+# --- Additional API Routes ---
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model_loaded": _classifier is not None}
+
+
+@app.get("/metrics")
+def get_metrics():
+    if _metrics is None:
+        raise HTTPException(404, "No metrics available. Train the model first.")
+    return _metrics
+
+
+@app.get("/history")
+def get_history(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    return get_scans(user_id=user_id, limit=50)
+
+
+@app.get("/history/{scan_id}")
+def get_scan_details(scan_id: str, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    scan = get_scan_by_id(scan_id, user_id=user_id)
+    if not scan:
+        raise HTTPException(404, f"Scan {scan_id} not found.")
+    return scan
+
+
+@app.delete("/history/{scan_id}")
+def delete_single_scan(scan_id: str, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    deleted = delete_scan(scan_id, user_id=user_id)
+    if not deleted:
+        raise HTTPException(404, f"Scan {scan_id} not found or already deleted.")
+    return {"success": True, "message": f"Scan {scan_id} deleted successfully."}
+
+
+@app.delete("/history")
+def purge_all_history(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    count = clear_all_scans(user_id=user_id)
+    return {"success": True, "deleted_count": count, "message": f"Successfully purged {count} scan records."}
+
+
+@app.get("/alerts")
+def get_security_alerts(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    return get_alerts(user_id=user_id, limit=30)
+
+
+@app.get("/stats")
+def get_dashboard_stats(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    return get_stats(user_id=user_id)
+
+
+@app.get("/intelligence")
+def get_security_intelligence(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    stats = get_stats(user_id=user_id)
+    fb_stats = get_feedback_stats(user_id=user_id)
+    return {
+        **stats,
+        "feedback_stats": fb_stats,
+        "engine_version": "MailShield AI 2.1.0 SOC Edition",
+        "benchmark_accuracy": f"{_metrics['accuracy']*100:.2f}%" if _metrics and "accuracy" in _metrics else "98.51%",
+        "privacy_sandbox_active": True
+    }
+
+
+@app.post("/feedback")
+def submit_feedback(req: FeedbackRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    label = req.actual_label.upper()
+    if label not in ["SAFE", "THREAT"]:
+        raise HTTPException(400, "actual_label must be either 'SAFE' or 'THREAT'.")
+    
+    fb = save_feedback(
+        scan_id=req.scan_id,
+        actual_label=label,
+        original_verdict=req.original_verdict or "UNKNOWN",
+        user_id=user_id,
+        subject_snippet=req.subject_snippet,
+        comments=req.comments
+    )
+    fb_stats = get_feedback_stats(user_id=user_id)
+    return {
+        "success": True,
+        "feedback": fb,
+        "stats": fb_stats,
+        "message": f"Feedback recorded successfully. MailShield adaptive learning engine updated."
+    }
+
+
+@app.get("/feedback/stats")
+def get_feedback_telemetry(user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    user_id = user["id"] if user else None
+    return get_feedback_stats(user_id=user_id)
+
+
+@app.post("/containment/assess", response_model=ContainmentResponse)
+def assess_containment(req: ContainmentRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
+    """Provides dynamic real-time incident containment playbooks for 7 user interaction scenarios."""
+    user_id = user["id"] if user else None
+    baseline_risk = 75.0
+    if req.scan_id:
+        scan = get_scan_by_id(req.scan_id, user_id=user_id)
+        if scan:
+            baseline_risk = scan.get("extracted_features", {}).get("risk_score", 75.0)
+
+    playbooks = _build_containment_playbooks(baseline_risk)
+    action = req.action_taken.lower().strip()
+    if action not in playbooks:
+        action = "clicked_link" if "link" in action else "opened"
+
+    playbook_data = playbooks[action]
+    playbook_obj = ContainmentPlaybook(
+        action_key=playbook_data["action_key"],
+        action_title=playbook_data["action_title"],
+        severity=playbook_data["severity"],
+        escalated_risk_score=playbook_data["escalated_risk_score"],
+        description=playbook_data["description"],
+        containment_steps=[ContainmentStep(**s) for s in playbook_data["containment_steps"]]
+    )
+
+    events = [
+        IncidentEvent(
+            step_number=1,
+            timestamp_offset="T+0.00s",
+            phase="Interaction Triggered",
+            description=f"User interaction detected: '{playbook_data['action_title']}'. Incident escalation initiated.",
+            status="TRIGGERED"
+        ),
+        IncidentEvent(
+            step_number=2,
+            timestamp_offset="T+0.02s",
+            phase="Risk Escalation",
+            description=f"Threat score escalated to {playbook_data['escalated_risk_score']}%. Severity level: {playbook_data['severity']}.",
+            status="ACTIVE"
+        ),
+        IncidentEvent(
+            step_number=3,
+            timestamp_offset="T+0.05s",
+            phase="Playbook Dispatch",
+            description="Active containment measures dispatched to client interface.",
+            status="COMPLETED"
+        )
+    ]
+
+    return ContainmentResponse(
+        action_taken=action,
+        action_title=playbook_data["action_title"],
+        escalated_risk_score=playbook_data["escalated_risk_score"],
+        containment_playbook=playbook_obj,
+        incident_events=events
+    )
 

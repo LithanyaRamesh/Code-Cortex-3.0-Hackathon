@@ -240,3 +240,62 @@ def test_delete_scan_and_purge():
     fetch_resp = client.get(f"/history/{scan_id}")
     assert fetch_resp.status_code == 404
 
+
+def test_attack_surface_detection():
+    # Threat email with links, OTP, password, and wire transfer requests
+    threat_email = (
+        "Subject: URGENT: Complete wire payment and verify account password\n\n"
+        "Please enter your password and enter the 6-digit OTP code immediately to authorize "
+        "wire payment of $15,000 to http://secure-update-portal.xyz/login. See attached invoice.pdf."
+    )
+    resp = client.post("/analyze", json={"raw_email": threat_email})
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert "attack_surface_vectors" in data
+    assert len(data["attack_surface_vectors"]) == 8
+    
+    # Check that link, password, otp, payment, and attachment are detected
+    detected_keys = [v["key"] for v in data["attack_surface_vectors"] if v["detected"]]
+    assert "link" in detected_keys
+    assert "password" in detected_keys
+    assert "otp" in detected_keys
+    assert "payment" in detected_keys
+    assert "attachment" in detected_keys
+
+    # Check What Can Happen and What Should I Do Now
+    assert "what_can_happen" in data
+    assert len(data["what_can_happen"]) > 20
+    assert "what_to_do_now" in data
+    assert len(data["what_to_do_now"]) >= 4
+
+    # Check Interaction Risk Scores
+    assert "interaction_risk_scores" in data
+    assert data["interaction_risk_scores"]["made_payment"] == 100.0
+    assert data["interaction_risk_scores"]["entered_otp"] == 98.0
+
+    # Check Incident Timeline
+    assert "incident_timeline" in data
+    assert len(data["incident_timeline"]) >= 5
+
+
+def test_containment_assessment():
+    # Direct endpoint test for containment
+    actions = [
+        "opened",
+        "clicked_link",
+        "opened_attachment",
+        "entered_password",
+        "entered_otp",
+        "made_payment",
+        "shared_sensitive_data"
+    ]
+    for action in actions:
+        res = client.post("/containment/assess", json={"action_taken": action})
+        assert res.status_code == 200
+        d = res.json()
+        assert d["action_taken"] == action
+        assert "containment_playbook" in d
+        assert len(d["containment_playbook"]["containment_steps"]) >= 3
+        assert "incident_events" in d
+

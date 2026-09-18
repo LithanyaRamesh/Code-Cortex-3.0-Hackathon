@@ -45,6 +45,12 @@ def init_db():
         explanation TEXT,
         indicators_json TEXT,
         evidence_json TEXT,
+        attack_surface_json TEXT,
+        what_can_happen TEXT,
+        what_to_do_now_json TEXT,
+        interaction_scores_json TEXT,
+        containment_json TEXT,
+        timeline_json TEXT,
         spf TEXT,
         dkim TEXT,
         dmarc TEXT,
@@ -69,14 +75,25 @@ def init_db():
     )
     """)
     
-    # Auto-migrate any existing scans table if evidence_json is missing
-    try:
-        cur.execute("ALTER TABLE scans ADD COLUMN evidence_json TEXT")
-    except sqlite3.OperationalError:
-        pass
+    # Auto-migrate any existing scans table for new columns
+    migration_columns = [
+        ("evidence_json", "TEXT"),
+        ("attack_surface_json", "TEXT"),
+        ("what_can_happen", "TEXT"),
+        ("what_to_do_now_json", "TEXT"),
+        ("interaction_scores_json", "TEXT"),
+        ("containment_json", "TEXT"),
+        ("timeline_json", "TEXT"),
+    ]
+    for col_name, col_type in migration_columns:
+        try:
+            cur.execute(f"ALTER TABLE scans ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass
 
     conn.commit()
     conn.close()
+
 
 
 
@@ -134,14 +151,22 @@ def save_scan(scan_data: Dict[str, Any], user_id: Optional[int] = None) -> Dict[
     now = scan_data.get("timestamp") or datetime.utcnow().isoformat()
     indicators_json = json.dumps(scan_data.get("indicators", []))
     evidence_json = json.dumps(scan_data.get("evidence_items", []))
+    attack_surface_json = json.dumps(scan_data.get("attack_surface_vectors", []))
+    what_can_happen = scan_data.get("what_can_happen", "")
+    what_to_do_now_json = json.dumps(scan_data.get("what_to_do_now", []))
+    interaction_scores_json = json.dumps(scan_data.get("interaction_risk_scores", {}))
+    containment_json = json.dumps(scan_data.get("containment_playbooks", {}))
+    timeline_json = json.dumps(scan_data.get("incident_timeline", []))
     
     try:
         cur.execute("""
         INSERT INTO scans (
             user_id, scan_id, subject_preview, verdict, risk_level,
             confidence, model_probability_spam, explanation, indicators_json, evidence_json,
+            attack_surface_json, what_can_happen, what_to_do_now_json,
+            interaction_scores_json, containment_json, timeline_json,
             spf, dkim, dmarc, suspicious_links, raw_snippet, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             scan_data["scan_id"],
@@ -153,6 +178,12 @@ def save_scan(scan_data: Dict[str, Any], user_id: Optional[int] = None) -> Dict[
             scan_data.get("explanation", ""),
             indicators_json,
             evidence_json,
+            attack_surface_json,
+            what_can_happen,
+            what_to_do_now_json,
+            interaction_scores_json,
+            containment_json,
+            timeline_json,
             scan_data.get("spf", "UNKNOWN"),
             scan_data.get("dkim", "UNKNOWN"),
             scan_data.get("dmarc", "UNKNOWN"),
@@ -261,6 +292,33 @@ def get_all_feedback() -> List[Dict[str, Any]]:
         conn.close()
 
 
+def _hydrate_scan_row(r: sqlite3.Row) -> Dict[str, Any]:
+    d = dict(r)
+    for field, default in [
+        ("indicators_json", []),
+        ("evidence_json", []),
+        ("attack_surface_json", []),
+        ("what_to_do_now_json", []),
+        ("interaction_scores_json", {}),
+        ("containment_json", {}),
+        ("timeline_json", []),
+    ]:
+        key_target = field.replace("_json", "") if field.endswith("_json") else field
+        if field == "indicators_json": key_target = "indicators"
+        elif field == "evidence_json": key_target = "evidence_items"
+        elif field == "attack_surface_json": key_target = "attack_surface_vectors"
+        elif field == "what_to_do_now_json": key_target = "what_to_do_now"
+        elif field == "interaction_scores_json": key_target = "interaction_risk_scores"
+        elif field == "containment_json": key_target = "containment_playbooks"
+        elif field == "timeline_json": key_target = "incident_timeline"
+
+        try:
+            d[key_target] = json.loads(d.get(field) or "null") if d.get(field) else default
+        except Exception:
+            d[key_target] = default
+    return d
+
+
 def get_scans(user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
     conn = get_db_connection()
     cur = conn.cursor()
@@ -270,19 +328,7 @@ def get_scans(user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, 
         else:
             cur.execute("SELECT * FROM scans ORDER BY id DESC LIMIT ?", (limit,))
         rows = cur.fetchall()
-        results = []
-        for r in rows:
-            d = dict(r)
-            try:
-                d["indicators"] = json.loads(d.get("indicators_json") or "[]")
-            except Exception:
-                d["indicators"] = []
-            try:
-                d["evidence_items"] = json.loads(d.get("evidence_json") or "[]")
-            except Exception:
-                d["evidence_items"] = []
-            results.append(d)
-        return results
+        return [_hydrate_scan_row(r) for r in rows]
     finally:
         conn.close()
 
@@ -298,18 +344,10 @@ def get_scan_by_id(scan_id: str, user_id: Optional[int] = None) -> Optional[Dict
         row = cur.fetchone()
         if not row:
             return None
-        d = dict(row)
-        try:
-            d["indicators"] = json.loads(d.get("indicators_json") or "[]")
-        except Exception:
-            d["indicators"] = []
-        try:
-            d["evidence_items"] = json.loads(d.get("evidence_json") or "[]")
-        except Exception:
-            d["evidence_items"] = []
-        return d
+        return _hydrate_scan_row(row)
     finally:
         conn.close()
+
 
 
 def get_alerts(user_id: Optional[int] = None, limit: int = 30) -> List[Dict[str, Any]]:
