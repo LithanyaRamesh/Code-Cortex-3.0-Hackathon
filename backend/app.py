@@ -17,11 +17,13 @@ from typing import Dict, List, Optional, Any
 import joblib
 from fastapi import FastAPI, HTTPException, Header, Depends, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from database import (
     init_db, create_user, get_user_by_email, get_user_by_id,
     update_user_password, save_password_reset, verify_and_consume_password_reset,
+    update_user_google_tokens, disconnect_user_gmail, get_user_gmail_credentials,
     save_scan, get_scans, get_scan_by_id, get_stats,
     save_feedback, get_feedback_stats, get_all_feedback,
     delete_scan, clear_all_scans, get_alerts
@@ -29,6 +31,11 @@ from database import (
 from auth import (
     hash_password, verify_password, create_jwt_token, decode_jwt_token,
     is_google_oauth_configured, get_google_oauth_info
+)
+from gmail_service import (
+    get_google_auth_url, exchange_code_for_tokens, refresh_access_token,
+    get_google_user_info, list_gmail_messages, get_gmail_message_detail,
+    FRONTEND_URL
 )
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
@@ -347,6 +354,71 @@ def google_status():
     return get_google_oauth_info()
 
 
+@app.get("/auth/google/login")
+def google_auth_login(state: Optional[str] = None):
+    if not is_google_oauth_configured():
+        return RedirectResponse(url=f"{FRONTEND_URL}/#error=google_not_configured")
+    auth_url = get_google_auth_url(state=state or "")
+    return RedirectResponse(url=auth_url)
+
+
+@app.get("/auth/google/callback")
+def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None, state: Optional[str] = None):
+    if error or not code:
+        err_msg = error or "google_auth_failed"
+        return RedirectResponse(url=f"{FRONTEND_URL}/#error={err_msg}")
+
+    if not is_google_oauth_configured():
+        return RedirectResponse(url=f"{FRONTEND_URL}/#error=google_not_configured")
+
+    try:
+        token_data = exchange_code_for_tokens(code)
+        access_token = token_data.get("access_token")
+        refresh_token = token_data.get("refresh_token")
+        expires_in = token_data.get("expires_in", 3600)
+        expiry_iso = (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat()
+
+        user_info = get_google_user_info(access_token)
+        google_email = (user_info.get("email") or "").strip().lower()
+        full_name = user_info.get("name") or google_email.split("@")[0]
+
+        if not google_email:
+            return RedirectResponse(url=f"{FRONTEND_URL}/#error=no_email_from_google")
+
+        # Find or create user
+        user = get_user_by_email(google_email)
+        if not user:
+            pwd_hash, salt = hash_password(secrets.token_hex(16))
+            user = create_user(
+                email=google_email,
+                full_name=full_name,
+                password_hash=pwd_hash,
+                salt=salt,
+                auth_provider="google"
+            )
+
+        # Update stored Google tokens
+        update_user_google_tokens(
+            user_id=user["id"],
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expiry=expiry_iso,
+            gmail_email=google_email
+        )
+
+        # Issue MailShield JWT
+        token = create_jwt_token({
+            "sub": user["id"],
+            "email": user["email"],
+            "full_name": user["full_name"]
+        })
+
+        return RedirectResponse(url=f"{FRONTEND_URL}/#token={token}&gmail_connected=1")
+    except Exception as e:
+        logger.error(f"Google OAuth callback error: {e}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/#error=oauth_exchange_failed")
+
+
 @app.post("/auth/google")
 def google_login(req: GoogleAuthRequest):
     if not is_google_oauth_configured():
@@ -357,7 +429,137 @@ def google_login(req: GoogleAuthRequest):
                 "Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables in your backend environment."
             )
         )
-    raise HTTPException(400, "Google OAuth token verification requires active client credentials.")
+    raise HTTPException(400, "Please use the 'Continue with Google' button to sign in directly.")
+
+
+@app.get("/api/gmail/status")
+def get_gmail_status(user: Dict[str, Any] = Depends(get_required_current_user)):
+    creds = get_user_gmail_credentials(user["id"])
+    if not creds:
+        return {"connected": False, "gmail_email": None, "configured": is_google_oauth_configured()}
+    
+    is_connected = bool(creds.get("gmail_connected") and creds.get("google_access_token"))
+    return {
+        "connected": is_connected,
+        "gmail_email": creds.get("gmail_email") or user["email"] if is_connected else None,
+        "configured": is_google_oauth_configured()
+    }
+
+
+@app.post("/api/gmail/disconnect")
+def disconnect_gmail(user: Dict[str, Any] = Depends(get_required_current_user)):
+    disconnect_user_gmail(user["id"])
+    return {"status": "success", "message": "Gmail inbox disconnected successfully."}
+
+
+def _get_valid_gmail_token(user_id: int) -> str:
+    """Helper to retrieve and auto-refresh the user's Google access token."""
+    creds = get_user_gmail_credentials(user_id)
+    if not creds or not creds.get("google_access_token"):
+        raise HTTPException(status_code=400, detail="Gmail is not connected. Please connect your Gmail account to ingest live emails.")
+    
+    access_token = creds["google_access_token"]
+    refresh_tok = creds.get("google_refresh_token")
+    expiry_str = creds.get("google_token_expiry")
+    
+    # Check expiry
+    needs_refresh = False
+    if expiry_str:
+        try:
+            exp_dt = datetime.fromisoformat(expiry_str)
+            if datetime.utcnow() >= (exp_dt - timedelta(minutes=2)):
+                needs_refresh = True
+        except Exception:
+            pass
+    
+    if needs_refresh and refresh_tok:
+        try:
+            refreshed = refresh_access_token(refresh_tok)
+            new_access_tok = refreshed.get("access_token")
+            new_expires_in = refreshed.get("expires_in", 3600)
+            new_expiry_iso = (datetime.utcnow() + timedelta(seconds=new_expires_in)).isoformat()
+            update_user_google_tokens(
+                user_id=user_id,
+                access_token=new_access_tok,
+                expiry=new_expiry_iso
+            )
+            return new_access_tok
+        except Exception as e:
+            logger.warning(f"Could not refresh access token: {e}")
+    
+    return access_token
+
+
+@app.get("/api/gmail/messages")
+def get_user_gmail_messages(
+    q: Optional[str] = None,
+    limit: int = 20,
+    user: Dict[str, Any] = Depends(get_required_current_user)
+):
+    access_token = _get_valid_gmail_token(user["id"])
+    try:
+        messages = list_gmail_messages(access_token=access_token, max_results=limit, query=q)
+        return {
+            "status": "success",
+            "messages": messages,
+            "total": len(messages),
+            "gmail_email": user.get("gmail_email") or user["email"]
+        }
+    except Exception as e:
+        logger.error(f"Failed to list Gmail messages: {e}")
+        # Try refreshing token once on error
+        creds = get_user_gmail_credentials(user["id"])
+        if creds and creds.get("google_refresh_token"):
+            try:
+                refreshed = refresh_access_token(creds["google_refresh_token"])
+                new_tok = refreshed.get("access_token")
+                new_exp = (datetime.utcnow() + timedelta(seconds=refreshed.get("expires_in", 3600))).isoformat()
+                update_user_google_tokens(user["id"], new_tok, expiry=new_exp)
+                messages = list_gmail_messages(access_token=new_tok, max_results=limit, query=q)
+                return {
+                    "status": "success",
+                    "messages": messages,
+                    "total": len(messages),
+                    "gmail_email": user.get("gmail_email") or user["email"]
+                }
+            except Exception as e2:
+                logger.error(f"Retry after token refresh failed: {e2}")
+        raise HTTPException(502, f"Failed to retrieve Gmail inbox messages: {str(e)}")
+
+
+@app.get("/api/gmail/messages/{message_id}")
+def get_user_gmail_message_content(
+    message_id: str,
+    user: Dict[str, Any] = Depends(get_required_current_user)
+):
+    access_token = _get_valid_gmail_token(user["id"])
+    try:
+        detail = get_gmail_message_detail(access_token=access_token, message_id=message_id)
+        return detail
+    except Exception as e:
+        logger.error(f"Failed to fetch Gmail message {message_id}: {e}")
+        raise HTTPException(502, f"Failed to retrieve email content from Gmail: {str(e)}")
+
+
+@app.post("/api/gmail/messages/{message_id}/analyze", response_model=AnalyzeResponse)
+def analyze_gmail_message(
+    message_id: str,
+    user: Dict[str, Any] = Depends(get_required_current_user)
+):
+    access_token = _get_valid_gmail_token(user["id"])
+    try:
+        detail = get_gmail_message_detail(access_token=access_token, message_id=message_id)
+    except Exception as e:
+        logger.error(f"Failed to fetch message for analysis: {e}")
+        raise HTTPException(502, f"Could not retrieve message {message_id} from Gmail: {str(e)}")
+
+    # Feed real ingested email data directly into the AI/ML & Attack Surface pipeline
+    return _process_analysis(
+        raw_email=detail.get("raw_rfc822") or detail.get("body"),
+        subject=detail.get("subject"),
+        body=detail.get("body"),
+        user=user
+    )
 
 
 @app.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
@@ -808,7 +1010,7 @@ def _evaluate_attack_surface(
     ))
 
     # 7. 💳 Payment Vector
-    pay_detected = bool(financial_triggers)
+    pay_detected = bool(financial_triggers or re.search(r"\b(?:wire|transfer|payment|invoice|\$\d+)\b", combined, re.I))
     vectors.append(AttackSurfaceVector(
         key="payment",
         action_title="Make Payment / Wire Transfer",

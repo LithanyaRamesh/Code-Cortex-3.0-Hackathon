@@ -103,8 +103,107 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # Auto-migrate users table for Gmail integration columns
+    user_migration_columns = [
+        ("google_access_token", "TEXT"),
+        ("google_refresh_token", "TEXT"),
+        ("google_token_expiry", "TEXT"),
+        ("gmail_connected", "INTEGER DEFAULT 0"),
+        ("gmail_email", "TEXT"),
+    ]
+    for col_name, col_type in user_migration_columns:
+        try:
+            cur.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass
+
     conn.commit()
     conn.close()
+
+
+def update_user_google_tokens(
+    user_id: int,
+    access_token: str,
+    refresh_token: Optional[str] = None,
+    expiry: Optional[str] = None,
+    gmail_email: Optional[str] = None
+) -> bool:
+    """Updates the user's stored Google OAuth and Gmail tokens."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        if refresh_token:
+            cur.execute(
+                """
+                UPDATE users SET
+                    google_access_token = ?,
+                    google_refresh_token = ?,
+                    google_token_expiry = ?,
+                    gmail_connected = 1,
+                    gmail_email = COALESCE(?, gmail_email)
+                WHERE id = ?
+                """,
+                (access_token, refresh_token, expiry, gmail_email, user_id)
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE users SET
+                    google_access_token = ?,
+                    google_token_expiry = ?,
+                    gmail_connected = 1,
+                    gmail_email = COALESCE(?, gmail_email)
+                WHERE id = ?
+                """,
+                (access_token, expiry, gmail_email, user_id)
+            )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def disconnect_user_gmail(user_id: int) -> bool:
+    """Clears the stored Google/Gmail tokens for the given user."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            UPDATE users SET
+                google_access_token = NULL,
+                google_refresh_token = NULL,
+                google_token_expiry = NULL,
+                gmail_connected = 0
+            WHERE id = ?
+            """,
+            (user_id,)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_user_gmail_credentials(user_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieves Google/Gmail connection status and tokens for a user."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT id, email, full_name, google_access_token, google_refresh_token,
+                   google_token_expiry, gmail_connected, gmail_email
+            FROM users WHERE id = ?
+            """,
+            (user_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return dict(row)
+    finally:
+        conn.close()
 
 
 

@@ -1,6 +1,7 @@
 import io
 import os
 import sys
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 
@@ -307,7 +308,8 @@ def test_forgot_password_user_not_found():
 
 
 def test_forgot_password_and_reset_flow_success():
-    test_email = "analyst.reset.test@mailshield.ai"
+    uid = uuid.uuid4().hex[:6]
+    test_email = f"analyst.reset.{uid}@mailshield.ai"
     test_name = "Alex Analyst"
     orig_pwd = "OriginalPassword123"
     new_pwd = "NewSecurePassword456!"
@@ -354,7 +356,8 @@ def test_forgot_password_and_reset_flow_success():
 
 
 def test_reset_password_invalid_code_rejected():
-    test_email = "analyst.code.check@mailshield.ai"
+    uid = uuid.uuid4().hex[:6]
+    test_email = f"analyst.code.{uid}@mailshield.ai"
     client.post("/auth/register", json={
         "full_name": "Test Code User",
         "email": test_email,
@@ -375,7 +378,8 @@ def test_reset_password_invalid_code_rejected():
 
 
 def test_reset_password_short_password_rejected():
-    test_email = "analyst.short.pwd@mailshield.ai"
+    uid = uuid.uuid4().hex[:6]
+    test_email = f"analyst.short.{uid}@mailshield.ai"
     client.post("/auth/register", json={
         "full_name": "Short Pwd User",
         "email": test_email,
@@ -393,5 +397,137 @@ def test_reset_password_short_password_rejected():
     })
     assert short_res.status_code == 400
     assert "at least 6 characters" in short_res.json()["detail"]
+
+
+def test_gmail_status_disconnected_default():
+    uid = uuid.uuid4().hex[:6]
+    reg = client.post("/auth/register", json={
+        "full_name": "Gmail Test User",
+        "email": f"gmail.test.{uid}@mailshield.ai",
+        "password": "Password123!"
+    })
+    token = reg.json()["token"]
+
+    res = client.get("/api/gmail/status", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["connected"] is False
+
+
+def test_gmail_messages_not_connected_error():
+    uid = uuid.uuid4().hex[:6]
+    reg = client.post("/auth/register", json={
+        "full_name": "No Gmail User",
+        "email": f"no.gmail.{uid}@mailshield.ai",
+        "password": "Password123!"
+    })
+    token = reg.json()["token"]
+
+    res = client.get("/api/gmail/messages", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 400
+    assert "Gmail is not connected" in res.json()["detail"]
+
+
+def test_gmail_mock_message_ingestion_and_analyze(monkeypatch):
+    import app as app_module
+    from database import update_user_google_tokens
+
+    uid = uuid.uuid4().hex[:6]
+    reg = client.post("/auth/register", json={
+        "full_name": "Connected Analyst",
+        "email": f"connected.analyst.{uid}@company.com",
+        "password": "Password123!"
+    })
+    user_id = reg.json()["user"]["id"]
+    token = reg.json()["token"]
+
+    # Connect Google tokens in DB
+    update_user_google_tokens(
+        user_id=user_id,
+        access_token="mock_google_access_token_12345",
+        refresh_token="mock_refresh_token_67890",
+        expiry="2099-01-01T00:00:00",
+        gmail_email="connected.analyst@gmail.com"
+    )
+
+    # Mock list_gmail_messages
+    def mock_list(access_token, max_results=20, query=None):
+        return [
+            {
+                "id": "msg_phish_001",
+                "thread_id": "thread_001",
+                "sender": "Payroll Security <security-update@urgent-payroll-login.xyz>",
+                "subject": "URGENT: Verify Your 6-Digit OTP & Password Now",
+                "date": "Thu, 18 Sep 2026 10:15:00 GMT",
+                "snippet": "Your account direct deposit is on hold. Enter your password and OTP code immediately.",
+                "is_unread": True,
+                "labels": ["INBOX", "UNREAD"]
+            }
+        ]
+
+    # Mock get_gmail_message_detail
+    def mock_detail(access_token, message_id):
+        return {
+            "message_id": message_id,
+            "sender": "Payroll Security <security-update@urgent-payroll-login.xyz>",
+            "to": "connected.analyst@company.com",
+            "subject": "URGENT: Verify Your 6-Digit OTP & Password Now",
+            "date": "Thu, 18 Sep 2026 10:15:00 GMT",
+            "body": "Your payroll direct deposit is suspended. Please wire $5,000 and enter your OTP verification code at http://login-verify-portal.xyz/otp immediately. Attachment invoice.pdf is attached.",
+            "raw_rfc822": "From: Payroll Security <security-update@urgent-payroll-login.xyz>\nSubject: URGENT: Verify Your 6-Digit OTP & Password Now\nDKIM-Signature: NONE\nReceived-SPF: FAIL\n\nYour payroll direct deposit is suspended. Please wire $5,000 and enter your OTP verification code at http://login-verify-portal.xyz/otp immediately. Attachment invoice.pdf is attached.",
+            "attachments": [{"filename": "invoice.pdf", "mime_type": "application/pdf", "size": 15420}],
+            "urls": ["http://login-verify-portal.xyz/otp"],
+            "spf": "FAIL",
+            "dkim": "NONE",
+            "dmarc": "FAIL",
+            "snippet": "Your account direct deposit is on hold..."
+        }
+
+    monkeypatch.setattr(app_module, "list_gmail_messages", mock_list)
+    monkeypatch.setattr(app_module, "get_gmail_message_detail", mock_detail)
+
+    # 1. Test status is now connected
+    st_res = client.get("/api/gmail/status", headers={"Authorization": f"Bearer {token}"})
+    assert st_res.status_code == 200
+    assert st_res.json()["connected"] is True
+    assert st_res.json()["gmail_email"] == "connected.analyst@gmail.com"
+
+    # 2. Test messages list
+    msg_res = client.get("/api/gmail/messages", headers={"Authorization": f"Bearer {token}"})
+    assert msg_res.status_code == 200
+    assert msg_res.json()["total"] == 1
+    assert msg_res.json()["messages"][0]["id"] == "msg_phish_001"
+
+    # 3. Test message detail
+    det_res = client.get("/api/gmail/messages/msg_phish_001", headers={"Authorization": f"Bearer {token}"})
+    assert det_res.status_code == 200
+    assert len(det_res.json()["attachments"]) == 1
+
+    # 4. Test automated ingestion and Attack Surface analysis
+    ana_res = client.post("/api/gmail/messages/msg_phish_001/analyze", headers={"Authorization": f"Bearer {token}"})
+    assert ana_res.status_code == 200
+    ana_data = ana_res.json()
+    assert ana_data["risk_level"] in ("Critical", "Elevated")
+    assert "attack_surface_vectors" in ana_data
+    assert len(ana_data["attack_surface_vectors"]) == 8
+
+    # Verify detected attack vectors
+    detected = [v["key"] for v in ana_data["attack_surface_vectors"] if v["detected"]]
+    assert "otp" in detected
+    assert "payment" in detected
+    assert "link" in detected
+    assert "what_can_happen" in ana_data
+    assert "what_to_do_now" in ana_data
+    assert len(ana_data["what_to_do_now"]) >= 3
+
+    # 5. Test disconnect
+    disc_res = client.post("/api/gmail/disconnect", headers={"Authorization": f"Bearer {token}"})
+    assert disc_res.status_code == 200
+    assert disc_res.json()["status"] == "success"
+
+    # Verify status after disconnect
+    st_after = client.get("/api/gmail/status", headers={"Authorization": f"Bearer {token}"})
+    assert st_after.json()["connected"] is False
+
 
 
