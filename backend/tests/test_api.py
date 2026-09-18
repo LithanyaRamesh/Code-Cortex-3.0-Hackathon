@@ -87,6 +87,45 @@ def test_predict_legit_sample():
     body = r.json()
     assert body["dkim"] == "PASS"
     assert body["risk_level"] == "Low"
+    assert "LIKELY LEGITIMATE" in body["verdict"]
+
+
+def test_predict_legitimate_normal_emails():
+    # 1. College assignment reminder
+    r1 = client.post("/predict", json={
+        "subject": "Assignment 3 submission deadline reminder",
+        "body": "Dear students, this is a reminder that Assignment 3 is due this Friday at 11:59 PM on Canvas. Office hours are open."
+    })
+    assert r1.status_code == 200
+    assert r1.json()["risk_level"] == "Low"
+    assert "LIKELY LEGITIMATE" in r1.json()["verdict"]
+
+    # 2. Team meeting
+    r2 = client.post("/predict", json={
+        "subject": "Team sync tomorrow at 10 AM",
+        "body": "Hi team, let us meet in Conference Room B tomorrow to go over the sprint backlog. Please bring your project updates."
+    })
+    assert r2.status_code == 200
+    assert r2.json()["risk_level"] == "Low"
+    assert "LIKELY LEGITIMATE" in r2.json()["verdict"]
+
+    # 3. Amazon shipping notification
+    r3 = client.post("/predict", json={
+        "subject": "Your Amazon order #402-991823 has shipped",
+        "body": "Your package containing Computer Monitor has shipped and will arrive on Thursday. Track your package at https://www.amazon.com/orders"
+    })
+    assert r3.status_code == 200
+    assert r3.json()["risk_level"] == "Low"
+    assert "LIKELY LEGITIMATE" in r3.json()["verdict"]
+
+    # 4. Personal communication
+    r4 = client.post("/predict", json={
+        "subject": "Dinner plans this weekend",
+        "body": "Hey Alex, are we still meeting for dinner on Saturday at 7 PM? Let me know which restaurant you prefer."
+    })
+    assert r4.status_code == 200
+    assert r4.json()["risk_level"] == "Low"
+    assert "LIKELY LEGITIMATE" in r4.json()["verdict"]
 
 
 def test_file_upload_txt_safe():
@@ -99,14 +138,16 @@ def test_file_upload_txt_safe():
     r = client.post("/predict/file", files={"file": ("maintenance.txt", file_bytes, "text/plain")})
     assert r.status_code == 200
     assert "scan_id" in r.json()
+    assert r.json()["risk_level"] == "Low"
 
 
-def test_file_upload_eml_safe():
+def test_file_upload_eml_phishing():
     eml_content = (
         "From: Accounting <payroll@spoofed-sec-portal.xyz>\n"
         "To: employee@corp.com\n"
         "Subject: ACTION REQUIRED: Update direct deposit account\n"
-        "DKIM-Signature: NONE\n"
+        "DKIM-Signature: fail\n"
+        "Authentication-Results: dkim=fail spf=fail\n"
         "Content-Type: text/plain\n\n"
         "Click here immediately to confirm your banking details: http://verify-payroll-login.xyz/auth"
     )
@@ -115,7 +156,7 @@ def test_file_upload_eml_safe():
     assert r.status_code == 200
     body = r.json()
     assert body["risk_level"] in ("Critical", "Elevated")
-    assert body["dkim"] == "NONE"
+    assert body["dkim"] == "FAIL"
 
 
 def test_file_upload_unsupported_type_rejected():
