@@ -988,7 +988,55 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 
       <div id="verdictBanner" class="verdict-banner"></div>
 
-      <!-- RISK SCORE & EVIDENCE -->
+      <!-- 1. LINK ANALYSIS & URL INTELLIGENCE -->
+      <div class="card" style="margin-top:16px;" id="linkAnalysisCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🔗 Link Analysis &amp; URL Intelligence</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Automated deep inspection of all embedded URLs, lookalike domains, shorteners, and protocol anomalies.</p>
+          </div>
+          <span class="badge low" id="linkIntelCountBadge">0 URLs Inspected</span>
+        </div>
+        <div style="margin-top:14px;" id="linkIntelList">
+          <!-- Dynamically populated link cards -->
+        </div>
+      </div>
+
+      <!-- 2. ATTACHMENT ANALYSIS & FILE INTELLIGENCE -->
+      <div class="card" style="margin-top:16px;" id="attachmentAnalysisCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>📎 Attachment Analysis &amp; File Intelligence</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Static file inspection for double extensions, dangerous executables, macros, and payload risk.</p>
+          </div>
+          <span class="badge low" id="attIntelCountBadge">0 Attachments</span>
+        </div>
+        <div style="margin-top:14px;" id="attIntelList">
+          <!-- Dynamically populated attachment cards -->
+        </div>
+      </div>
+
+      <!-- 3. ATTACK SURFACE MAP -->
+      <div class="card" style="margin-top:16px;" id="attackSurfaceCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🗺️ Attack Surface Map</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Identifies active risk surfaces supported by email evidence and their blast radius.</p>
+          </div>
+          <span class="badge crit" id="detectedVectorsBadge">0 Active Vectors</span>
+        </div>
+        <div class="attack-surface-grid" id="attackSurfaceGrid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- 4. RISK SCORE & EVIDENCE -->
       <div class="card risk-score-card" style="margin-top:16px;" id="riskScoreCard">
         <div class="risk-score-head">
           <div>
@@ -1011,71 +1059,7 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         </div>
       </div>
 
-      <!-- 1. ATTACKER INTENT: WHAT IS THE ATTACKER TRYING TO DO? -->
-      <div class="card" style="margin-top:16px;" id="attackerIntentCard">
-        <div class="row-between">
-          <div>
-            <h4 style="font-size:15.5px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-              <span>🎯 What is the attacker trying to do?</span>
-            </h4>
-            <p class="sub" style="margin-bottom:0;">Adversarial tactical objective and cited evidence identified from email context.</p>
-          </div>
-          <span class="badge crit" id="attackerIntentConfidenceBadge">95.0% Confidence</span>
-        </div>
-        <div id="attackerIntentBody" style="margin-top:14px;">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-
-      <!-- 2. ATTACK SURFACE DETECTION & THREAT SURFACE MAP -->
-      <div class="card" style="margin-top:16px;" id="attackSurfaceCard">
-        <div class="row-between">
-          <div>
-            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-              <span>🗺️ Attack Surface Map</span>
-            </h4>
-            <p class="sub" style="margin-bottom:0;">Identifies active attack surfaces supported by email evidence and their blast radius.</p>
-          </div>
-          <span class="badge crit" id="detectedVectorsBadge">0 Active Vectors</span>
-        </div>
-        <div class="attack-surface-grid" id="attackSurfaceGrid">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-
-      <!-- LINK ANALYSIS & URL INTELLIGENCE -->
-      <div class="card" style="margin-top:16px;" id="linkAnalysisCard">
-        <div class="row-between">
-          <div>
-            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-              <span>🔗 Link Analysis &amp; URL Intelligence</span>
-            </h4>
-            <p class="sub" style="margin-bottom:0;">Automated deep inspection of all embedded URLs, lookalike domains, shorteners, and protocol anomalies.</p>
-          </div>
-          <span class="badge low" id="linkIntelCountBadge">0 URLs Inspected</span>
-        </div>
-        <div style="margin-top:14px;" id="linkIntelList">
-          <!-- Dynamically populated link cards -->
-        </div>
-      </div>
-
-      <!-- ATTACHMENT ANALYSIS & FILE INTELLIGENCE -->
-      <div class="card" style="margin-top:16px;" id="attachmentAnalysisCard">
-        <div class="row-between">
-          <div>
-            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-              <span>📎 Attachment Analysis &amp; File Intelligence</span>
-            </h4>
-            <p class="sub" style="margin-bottom:0;">Static file inspection for double extensions, dangerous executables, macros, and payload risk.</p>
-          </div>
-          <span class="badge low" id="attIntelCountBadge">0 Attachments</span>
-        </div>
-        <div style="margin-top:14px;" id="attIntelList">
-          <!-- Dynamically populated attachment cards -->
-        </div>
-      </div>
-
-      <!-- TARGETED PROTECTION RECOMMENDATIONS -->
+      <!-- 5. TARGETED PROTECTION RECOMMENDATIONS -->
       <div class="card" style="margin-top:16px;" id="protectionRecsCard">
         <div class="row-between">
           <div>
@@ -1088,6 +1072,22 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         </div>
         <div class="rec-grid" id="protectionRecsGrid">
           <!-- Dynamically populated recommendations -->
+        </div>
+      </div>
+
+      <!-- 6. ATTACKER INTENT: WHAT IS THE ATTACKER TRYING TO DO? -->
+      <div class="card" style="margin-top:16px;" id="attackerIntentCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15.5px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🎯 What is the attacker trying to do?</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Adversarial tactical objective and cited evidence identified from email context.</p>
+          </div>
+          <span class="badge crit" id="attackerIntentConfidenceBadge">95.0% Confidence</span>
+        </div>
+        <div id="attackerIntentBody" style="margin-top:14px;">
+          <!-- Dynamically populated -->
         </div>
       </div>
 

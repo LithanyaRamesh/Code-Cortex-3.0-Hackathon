@@ -1711,7 +1711,7 @@ def _evaluate_attack_surface(
     link_detected = bool(n_suspicious > 0)
     vectors.append(AttackSurfaceVector(
         key="link",
-        action_title="🔗 Link: Phishing & Credential Theft",
+        action_title="🔗 Link — Phishing & credential theft risk",
         icon="🔗",
         risk_level="CRITICAL" if n_suspicious > 0 else "LOW",
         blast_radius="Redirects browser to an adversary-controlled phishing landing page designed to capture credentials or install drive-by malware.",
@@ -1724,7 +1724,7 @@ def _evaluate_attack_surface(
     att_detected = bool(attachment_triggers or has_malicious_att_url)
     vectors.append(AttackSurfaceVector(
         key="attachment",
-        action_title="📎 Attachment: Malware Risk",
+        action_title="📎 Attachment — Malware & file payload risk",
         icon="📎",
         risk_level="CRITICAL" if (has_malicious_att_url or prob_spam > 0.6) else ("HIGH" if attachment_triggers else "LOW"),
         blast_radius="Executes weaponized macros, malicious payload droppers, info-stealers, or ransomware binaries directly on your local endpoint.",
@@ -1737,7 +1737,7 @@ def _evaluate_attack_surface(
     sender_detected = bool((has_auth_headers and (dkim == "FAIL" or spf == "FAIL")) or exec_triggers)
     vectors.append(AttackSurfaceVector(
         key="sender",
-        action_title="👤 Sender: Impersonation",
+        action_title="👤 Sender — Impersonation & spoofing risk",
         icon="👤",
         risk_level="CRITICAL" if (has_auth_headers and (dkim == "FAIL" or spf == "FAIL")) else ("HIGH" if exec_triggers else "LOW"),
         blast_radius="Deceives recipient into believing the email originates from a trusted authority or legitimate service provider.",
@@ -1750,7 +1750,7 @@ def _evaluate_attack_surface(
     reply_detected = bool(reply_triggers)
     vectors.append(AttackSurfaceVector(
         key="reply",
-        action_title="💬 Reply: Social Engineering & Info Leakage",
+        action_title="💬 Reply — Social engineering & info disclosure",
         icon="💬",
         risk_level="HIGH" if reply_triggers else "LOW",
         blast_radius="Confirms active mailbox, opens direct communication channel for secondary spear-phishing and Business Email Compromise (BEC).",
@@ -1763,7 +1763,7 @@ def _evaluate_attack_surface(
     pwd_detected = bool(credential_triggers)
     vectors.append(AttackSurfaceVector(
         key="password",
-        action_title="🔑 Password: Credential Theft",
+        action_title="🔑 Password — Credential theft risk",
         icon="🔑",
         risk_level="CRITICAL" if credential_triggers else "LOW",
         blast_radius="Direct compromise of account credentials, enabling account takeover and lateral movement across systems.",
@@ -1776,7 +1776,7 @@ def _evaluate_attack_surface(
     otp_detected = bool(otp_triggers)
     vectors.append(AttackSurfaceVector(
         key="otp",
-        action_title="🔢 OTP: Account Takeover",
+        action_title="🔢 OTP — Account takeover risk",
         icon="🔢",
         risk_level="CRITICAL" if otp_triggers else "LOW",
         blast_radius="Real-time bypass of multi-factor authentication (MFA), enabling session interception and immediate account takeover.",
@@ -1789,7 +1789,7 @@ def _evaluate_attack_surface(
     pay_detected = bool(financial_triggers or (isinstance(combined, str) and re.search(r"\b(?:wire transfer|wiring instructions|direct deposit|bank account details|routing number)\b", combined, re.I)))
     vectors.append(AttackSurfaceVector(
         key="payment",
-        action_title="💳 Payment: Financial Fraud",
+        action_title="💳 Payment — Financial fraud risk",
         icon="💳",
         risk_level="CRITICAL" if pay_detected else "LOW",
         blast_radius="Direct financial loss through fraudulent wire transfers, altered direct deposits, or counterfeit invoice payments.",
@@ -1802,7 +1802,7 @@ def _evaluate_attack_surface(
     sens_detected = bool(sensitive_triggers)
     vectors.append(AttackSurfaceVector(
         key="sensitive_info",
-        action_title="📤 Sensitive Info: Data Leakage",
+        action_title="📤 Sensitive info — Data leakage risk",
         icon="📤",
         risk_level="CRITICAL" if sensitive_triggers else "LOW",
         blast_radius="Exfiltration of Personally Identifiable Information (SSN, tax forms, payroll records) causing identity theft and data leaks.",
