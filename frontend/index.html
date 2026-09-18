@@ -388,6 +388,46 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .att-item-pill{display:inline-flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-size:12px; color:var(--text);}
 .email-preview-body-box{background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:16px; margin:14px 0; max-height:280px; overflow-y:auto;}
 .email-body-pre{white-space:pre-wrap; word-wrap:break-word; font-family:inherit; font-size:13px; color:#e2e8f0; line-height:1.6; margin:0;}
+
+/* EVIDENCE-BASED RISK SCORE */
+.risk-score-card{background:linear-gradient(135deg, rgba(17,24,39,0.98), rgba(13,18,32,0.98)); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:18px 20px;}
+.risk-score-card.clean{border-color:rgba(34,197,94,0.35);}
+.risk-score-head{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;}
+.risk-score-title{font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px;}
+.risk-score-meter-track{width:100%; height:12px; background:#1c2438; border-radius:6px; overflow:hidden; position:relative; margin:10px 0 16px;}
+.risk-score-meter-fill{height:100%; border-radius:6px; transition:width .6s cubic-bezier(0.16, 1, 0.3, 1);}
+.score-components-list{display:flex; flex-direction:column; gap:8px;}
+.score-component-row{display:flex; justify-content:space-between; align-items:center; background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; gap:12px;}
+.score-pts-pill{background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:var(--red); font-weight:800; font-size:12px; font-family:monospace; padding:3px 8px; border-radius:6px; white-space:nowrap;}
+.score-pts-pill.clean{background:rgba(34,197,94,0.15); border-color:rgba(34,197,94,0.4); color:var(--green);}
+
+/* LINK INTELLIGENCE & FORENSICS */
+.link-intel-item{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; transition:all .2s ease;}
+.link-intel-item.suspicious{border-color:rgba(239,68,68,0.4); background:linear-gradient(135deg, rgba(239,68,68,0.06), rgba(17,23,38,0.95));}
+.link-intel-item.warning{border-color:rgba(245,158,11,0.4); background:linear-gradient(135deg, rgba(245,158,11,0.06), rgba(17,23,38,0.95));}
+.link-intel-item.clean{border-color:rgba(34,197,94,0.35); background:linear-gradient(135deg, rgba(34,197,94,0.04), rgba(17,23,38,0.95));}
+.link-url-box{font-family:monospace; font-size:12px; color:var(--cyan); background:rgba(0,0,0,0.35); border:1px solid var(--border); border-radius:6px; padding:8px 10px; word-break:break-all; margin:8px 0; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+.link-reason-pill{display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:5px; padding:3px 8px; font-size:11px; color:#cbd5e1; margin-right:6px; margin-top:4px;}
+
+/* ATTACHMENT INTELLIGENCE & FORENSICS */
+.att-intel-item{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px;}
+.att-intel-item.high_risk{border-color:rgba(239,68,68,0.4); background:linear-gradient(135deg, rgba(239,68,68,0.08), rgba(17,23,38,0.95));}
+.att-intel-item.warning{border-color:rgba(245,158,11,0.4); background:linear-gradient(135deg, rgba(245,158,11,0.06), rgba(17,23,38,0.95));}
+.att-intel-item.safe{border-color:rgba(34,197,94,0.35); background:linear-gradient(135deg, rgba(34,197,94,0.04), rgba(17,23,38,0.95));}
+.att-meta-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin:8px 0; font-size:11.5px;}
+.att-meta-item{background:rgba(0,0,0,0.25); border:1px solid var(--border); border-radius:6px; padding:6px 10px;}
+.att-meta-item span{color:var(--sub); display:block; font-size:10px; text-transform:uppercase;}
+.att-meta-item b{color:var(--text); font-size:12px;}
+
+/* PROTECTION RECOMMENDATIONS */
+.rec-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-top:12px;}
+.rec-card{background:linear-gradient(135deg, rgba(17,24,39,0.98), rgba(13,18,32,0.98)); border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px;}
+.rec-card.immediate{border-color:rgba(239,68,68,0.4); background:linear-gradient(135deg, rgba(239,68,68,0.06), rgba(17,23,38,0.95));}
+.rec-card.high{border-color:rgba(245,158,11,0.4); background:linear-gradient(135deg, rgba(245,158,11,0.06), rgba(17,23,38,0.95));}
+.rec-card.advisory{border-color:rgba(34,197,94,0.35); background:linear-gradient(135deg, rgba(34,197,94,0.04), rgba(17,23,38,0.95));}
+.rec-card-head{display:flex; justify-content:space-between; align-items:center;}
+.rec-action-item{display:flex; align-items:flex-start; gap:8px; font-size:12px; color:#e2e8f0; line-height:1.45;}
+.rec-action-item::before{content:"•"; color:var(--cyan); font-weight:800; font-size:14px;}
 .email-preview-footer{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border);}
 
 @media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid,.scan-stage-row,.shield-command-grid,.attack-surface-grid,.containment-btn-grid,.analysis-options-header{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
@@ -948,6 +988,29 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 
       <div id="verdictBanner" class="verdict-banner"></div>
 
+      <!-- EVIDENCE-BASED RISK SCORE -->
+      <div class="card risk-score-card" style="margin-top:16px;" id="riskScoreCard">
+        <div class="risk-score-head">
+          <div>
+            <div class="risk-score-title">
+              <span>📊 Evidence-Based Risk Score</span>
+              <span class="badge" id="riskScoreBadge">0/100</span>
+            </div>
+            <p class="sub" style="margin-bottom:0;" id="riskScoreSummary">Calculated additively from actual detected indicators in email payload.</p>
+          </div>
+          <div style="text-align:right;">
+            <span class="sub" style="font-size:11px; text-transform:uppercase; letter-spacing:.05em;">COMPUTED RISK SCORE</span>
+            <div id="riskScoreNumber" style="font-size:24px; font-weight:900; color:var(--green);">0 / 100</div>
+          </div>
+        </div>
+        <div class="risk-score-meter-track">
+          <div class="risk-score-meter-fill" id="riskScoreFill" style="width:0%; background:var(--green);"></div>
+        </div>
+        <div class="score-components-list" id="riskScoreComponentsList">
+          <!-- Dynamic additive components -->
+        </div>
+      </div>
+
       <!-- 1. ATTACKER INTENT: WHAT IS THE ATTACKER TRYING TO DO? -->
       <div class="card" style="margin-top:16px;" id="attackerIntentCard">
         <div class="row-between">
@@ -977,6 +1040,54 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
         </div>
         <div class="attack-surface-grid" id="attackSurfaceGrid">
           <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- LINK INTELLIGENCE & FORENSICS -->
+      <div class="card" style="margin-top:16px;" id="linkAnalysisCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🔗 Link Intelligence &amp; URL Forensics</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Automated deep inspection of all embedded URLs, lookalike domains, shorteners, and protocol anomalies.</p>
+          </div>
+          <span class="badge low" id="linkIntelCountBadge">0 URLs Inspected</span>
+        </div>
+        <div style="margin-top:14px;" id="linkIntelList">
+          <!-- Dynamically populated link cards -->
+        </div>
+      </div>
+
+      <!-- ATTACHMENT INTELLIGENCE & FILE FORENSICS -->
+      <div class="card" style="margin-top:16px;" id="attachmentAnalysisCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>📎 Attachment Intelligence &amp; Inspection</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Static file inspection for double extensions, dangerous executables, macros, and payload risk.</p>
+          </div>
+          <span class="badge low" id="attIntelCountBadge">0 Attachments</span>
+        </div>
+        <div style="margin-top:14px;" id="attIntelList">
+          <!-- Dynamically populated attachment cards -->
+        </div>
+      </div>
+
+      <!-- TARGETED PROTECTION RECOMMENDATIONS -->
+      <div class="card" style="margin-top:16px;" id="protectionRecsCard">
+        <div class="row-between">
+          <div>
+            <h4 style="font-size:15px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span>🛡️ Targeted Protection Recommendations</span>
+            </h4>
+            <p class="sub" style="margin-bottom:0;">Actionable defense procedures tailored specifically to detected email threat vectors.</p>
+          </div>
+          <span class="badge low" id="protectionRecsBadge">Adaptive Advisory</span>
+        </div>
+        <div class="rec-grid" id="protectionRecsGrid">
+          <!-- Dynamically populated recommendations -->
         </div>
       </div>
 
@@ -3272,6 +3383,264 @@ function selectContainmentAction(actionKey){
   }
 }
 
+function renderEvidenceRiskScore(riskScore){
+  const card = document.getElementById('riskScoreCard');
+  const numEl = document.getElementById('riskScoreNumber');
+  const badgeEl = document.getElementById('riskScoreBadge');
+  const fillEl = document.getElementById('riskScoreFill');
+  const summaryEl = document.getElementById('riskScoreSummary');
+  const listEl = document.getElementById('riskScoreComponentsList');
+
+  if(!riskScore || typeof riskScore.score !== 'number'){
+    if(card) card.style.display = 'none';
+    return;
+  }
+  if(card) card.style.display = 'block';
+
+  const score = Math.min(100, Math.max(0, Math.round(riskScore.score)));
+  const isSafe = score <= 25;
+  const isHigh = score > 65;
+  const color = isSafe ? 'var(--green)' : (isHigh ? 'var(--red)' : 'var(--amber)');
+  const badgeCls = isSafe ? 'low' : (isHigh ? 'crit' : 'high');
+
+  if(card){
+    if(isSafe) card.classList.add('clean');
+    else card.classList.remove('clean');
+  }
+  if(numEl){
+    numEl.textContent = `${score} / 100`;
+    numEl.style.color = color;
+  }
+  if(badgeEl){
+    badgeEl.textContent = `${score}/100 • ${riskScore.level || (isSafe ? 'Low Risk' : (isHigh ? 'High Risk' : 'Medium Risk'))}`;
+    badgeEl.className = `badge ${badgeCls}`;
+  }
+  if(fillEl){
+    fillEl.style.width = `${Math.max(4, score)}%`;
+    fillEl.style.background = isSafe ? 'var(--green)' : (isHigh ? 'linear-gradient(90deg, var(--amber), var(--red))' : 'linear-gradient(90deg, var(--cyan), var(--amber))');
+  }
+  if(summaryEl){
+    summaryEl.textContent = riskScore.explanation || 'Calculated additively from actual detected indicators in email payload.';
+  }
+
+  if(listEl){
+    const components = riskScore.components || [];
+    if(!components.length){
+      listEl.innerHTML = `
+        <div class="score-component-row">
+          <div>
+            <b style="font-size:12.5px; color:var(--green);">✓ Clean Baseline</b>
+            <p style="font-size:11.5px; color:var(--sub); margin-top:2px;">No malicious or suspicious indicators detected. Baseline calculated at 0 / 100.</p>
+          </div>
+          <span class="score-pts-pill clean">0 pts</span>
+        </div>
+      `;
+    } else {
+      listEl.innerHTML = components.map(c => `
+        <div class="score-component-row">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <b style="font-size:12.5px; color:var(--text);">${escapeHtml(c.category)}</b>
+              ${c.evidence ? `<span style="font-size:10.5px; color:var(--sub); font-family:monospace;">[${escapeHtml(c.evidence)}]</span>` : ''}
+            </div>
+            <p style="font-size:11.5px; color:var(--sub); margin-top:2px;">${escapeHtml(c.description)}</p>
+          </div>
+          <span class="score-pts-pill">+${c.points} pts</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+function renderLinkIntelligence(links){
+  const countBadge = document.getElementById('linkIntelCountBadge');
+  const listEl = document.getElementById('linkIntelList');
+  const linkList = links || [];
+
+  if(countBadge){
+    const suspCount = linkList.filter(l => l.status === 'Suspicious').length;
+    countBadge.textContent = `${linkList.length} URL${linkList.length===1?'':'s'} Inspected${suspCount > 0 ? ` (${suspCount} Suspicious)` : ''}`;
+    countBadge.className = suspCount > 0 ? 'badge crit' : (linkList.length > 0 ? 'badge low' : 'badge low');
+  }
+
+  if(!listEl) return;
+
+  if(!linkList.length){
+    listEl.innerHTML = `
+      <div class="empty-state" style="padding:18px; font-size:12.5px;">
+        <div class="empty-state-icon" style="font-size:22px; margin-bottom:4px;">🔗</div>
+        No URLs or hyperlinks detected in this email body.
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = linkList.map(item => {
+    const isSusp = item.status === 'Suspicious';
+    const isWarn = item.status === 'Warning';
+    const itemCls = isSusp ? 'suspicious' : (isWarn ? 'warning' : 'clean');
+    const badgeCls = isSusp ? 'crit' : (isWarn ? 'high' : 'low');
+    const statusIcon = isSusp ? '🔴' : (isWarn ? '🟠' : '🟢');
+    const statusLabel = isSusp ? 'Suspicious' : (isWarn ? 'Warning' : 'No suspicious indicators detected');
+
+    const reasons = item.reasons || [];
+    const reasonsHtml = reasons.length ? reasons.map(r => `<span class="link-reason-pill">⚠️ ${escapeHtml(r)}</span>`).join('') : '<span class="link-reason-pill" style="color:var(--green); border-color:rgba(34,197,94,0.3);">✓ Clean URL reputation & domain syntax</span>';
+
+    const mismatchHtml = (item.is_domain_mismatch && item.displayed_url) ? `
+      <div style="font-size:11.5px; color:var(--amber); background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); border-radius:6px; padding:6px 10px; margin:6px 0;">
+        ⚠️ <b>Visible Anchor Text Mismatch:</b> User sees "<code>${escapeHtml(item.displayed_url)}</code>" but link navigates to "<code>${escapeHtml(item.domain || item.url)}</code>"
+      </div>
+    ` : '';
+
+    return `
+      <div class="link-intel-item ${itemCls}">
+        <div class="row-between">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">${item.is_https ? '🔒' : '🔓'}</span>
+            <b style="font-size:13.5px; color:var(--text);">${escapeHtml(item.domain || 'Direct URL')}</b>
+            <span class="sub" style="font-size:11px;">${item.is_https ? 'HTTPS Verified' : 'Insecure HTTP'}</span>
+          </div>
+          <span class="badge ${badgeCls}">${statusIcon} ${statusLabel}</span>
+        </div>
+
+        <div class="link-url-box">
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(item.url)}</span>
+          <span class="sub" style="font-size:10.5px; white-space:nowrap;">Static Sandbox</span>
+        </div>
+
+        ${mismatchHtml}
+
+        <div style="margin-top:6px;">
+          <div style="font-size:11px; color:var(--sub2); text-transform:uppercase; font-weight:700; margin-bottom:3px;">Inspection Findings:</div>
+          <div>${reasonsHtml}</div>
+        </div>
+
+        <div style="display:flex; gap:14px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.05); font-size:11px; color:var(--sub);">
+          <span>Domain: <b>${escapeHtml(item.domain || 'N/A')}</b></span>
+          <span>Shortener: <b>${item.is_shortener ? 'Yes (Obfuscated)' : 'No'}</b></span>
+          <span>IP Host: <b>${item.is_ip_address ? 'Yes (Suspicious)' : 'No'}</b></span>
+          <span>Lookalike: <b>${item.is_lookalike ? 'Detected' : 'No'}</b></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAttachmentIntelligence(attachments){
+  const countBadge = document.getElementById('attIntelCountBadge');
+  const listEl = document.getElementById('attIntelList');
+  const attList = attachments || [];
+
+  if(countBadge){
+    const riskCount = attList.filter(a => a.status === 'High Risk').length;
+    countBadge.textContent = `${attList.length} Attachment${attList.length===1?'':'s'}${riskCount > 0 ? ` (${riskCount} High Risk)` : ''}`;
+    countBadge.className = riskCount > 0 ? 'badge crit' : (attList.length > 0 ? 'badge low' : 'badge low');
+  }
+
+  if(!listEl) return;
+
+  if(!attList.length){
+    listEl.innerHTML = `
+      <div class="empty-state" style="padding:18px; font-size:12.5px;">
+        <div class="empty-state-icon" style="font-size:22px; margin-bottom:4px;">📎</div>
+        No file attachments detected in this message.
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = attList.map(item => {
+    const isRisk = item.status === 'High Risk';
+    const isWarn = item.status === 'Warning';
+    const itemCls = isRisk ? 'high_risk' : (isWarn ? 'warning' : 'safe');
+    const badgeCls = isRisk ? 'crit' : (isWarn ? 'high' : 'low');
+    const statusIcon = isRisk ? '🔴' : (isWarn ? '🟠' : '🟢');
+
+    const reasons = item.reasons || [];
+    const reasonsHtml = reasons.length ? reasons.map(r => `<span class="link-reason-pill" style="border-color:${isRisk?'rgba(239,68,68,0.3)':'rgba(245,158,11,0.3)'}; color:${isRisk?'var(--red)':'var(--amber)'};">⚠️ ${escapeHtml(r)}</span>`).join('') : '<span class="link-reason-pill" style="color:var(--green); border-color:rgba(34,197,94,0.3);">✓ Standard non-executable payload structure</span>';
+
+    return `
+      <div class="att-intel-item ${itemCls}">
+        <div class="row-between">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">${isRisk ? '🚨' : '📎'}</span>
+            <div>
+              <b style="font-size:13.5px; color:var(--text);">${escapeHtml(item.filename)}</b>
+              ${item.is_double_extension ? '<span class="badge crit" style="margin-left:6px; font-size:9.5px;">DOUBLE EXTENSION DETECTED</span>' : ''}
+            </div>
+          </div>
+          <span class="badge ${badgeCls}">${statusIcon} ${item.status}</span>
+        </div>
+
+        <div class="att-meta-grid">
+          <div class="att-meta-item"><span>File Size</span><b>${escapeHtml(item.size_formatted || 'Unknown')}</b></div>
+          <div class="att-meta-item"><span>File Extension</span><b>${escapeHtml(item.extension || 'none')}</b></div>
+          <div class="att-meta-item"><span>MIME Type</span><b style="font-family:monospace; font-size:11px;">${escapeHtml(item.mime_type || 'application/octet-stream')}</b></div>
+          <div class="att-meta-item"><span>Executable Flag</span><b style="color:${item.is_executable ? 'var(--red)' : 'var(--green)'};">${item.is_executable ? 'Yes (Dangerous)' : 'No'}</b></div>
+        </div>
+
+        <div style="margin-top:6px;">
+          <div style="font-size:11px; color:var(--sub2); text-transform:uppercase; font-weight:700; margin-bottom:3px;">Inspection Reasons:</div>
+          <div>${reasonsHtml}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderProtectionRecommendations(recs){
+  const badgeEl = document.getElementById('protectionRecsBadge');
+  const gridEl = document.getElementById('protectionRecsGrid');
+  const recList = recs || [];
+
+  if(badgeEl){
+    const immCount = recList.filter(r => r.priority === 'IMMEDIATE').length;
+    badgeEl.textContent = immCount > 0 ? `${immCount} Critical Action(s)` : `${recList.length} Defense Recommendation(s)`;
+    badgeEl.className = immCount > 0 ? 'badge crit' : 'badge low';
+  }
+
+  if(!gridEl) return;
+
+  if(!recList.length){
+    gridEl.innerHTML = `
+      <div class="rec-card advisory" style="grid-column:1/-1;">
+        <div class="rec-card-head">
+          <b style="color:var(--green); font-size:13.5px;">✓ General Security Hygiene</b>
+          <span class="badge low">VERIFIED CLEAN</span>
+        </div>
+        <div style="font-size:12px; color:var(--sub);">No specific high-priority threat indicators detected in this message. Standard workplace email hygiene applies.</div>
+      </div>
+    `;
+    return;
+  }
+
+  gridEl.innerHTML = recList.map(r => {
+    const isImm = r.priority === 'IMMEDIATE';
+    const isHigh = r.priority === 'HIGH';
+    const cardCls = isImm ? 'immediate' : (isHigh ? 'high' : 'advisory');
+    const badgeCls = isImm ? 'crit' : (isHigh ? 'high' : 'low');
+    const icon = isImm ? '🚨' : (isHigh ? '⚠️' : '🛡️');
+
+    const actionsHtml = (r.actions || []).map(a => `<div class="rec-action-item">${escapeHtml(a)}</div>`).join('');
+
+    return `
+      <div class="rec-card ${cardCls}">
+        <div class="rec-card-head">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>${icon}</span>
+            <b style="font-size:13.5px; color:var(--text);">${escapeHtml(r.title)}</b>
+          </div>
+          <span class="badge ${badgeCls}">${r.priority}</span>
+        </div>
+        <div style="font-size:11px; color:var(--sub); font-style:italic;">Triggered by: ${escapeHtml(r.trigger)}</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+          ${actionsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderApiReport(d, raw){
   activeScanData = d;
   const cls = d.risk_level === "Low" ? "clean" : (d.risk_level === "Elevated" ? "high" : "crit");
@@ -3296,6 +3665,9 @@ function renderApiReport(d, raw){
     <div style="font-size:20px;font-weight:700;margin-top:4px;">${d.confidence}% Model Confidence</div>
     <p class="sub" style="margin-top:4px;">Inference generated by trained ML classifier (${d.scan_id}).</p></div></div>
     <div class="verdict-right"><span>ASSESSED RISK LEVEL</span><b style="color:${cls==='clean'?'var(--green)':cls==='high'?'var(--amber)':'var(--red)'}">${d.risk_level}</b></div>`;
+
+  // Render Evidence-Based Risk Score
+  renderEvidenceRiskScore(d.evidence_risk_score);
 
   document.getElementById('forensicExplain').textContent = d.explanation;
   
@@ -3324,6 +3696,15 @@ function renderApiReport(d, raw){
 
   // Render Attack Surface Detection & Active Protection
   renderAttackSurface(d);
+
+  // Render Link Intelligence
+  renderLinkIntelligence(d.link_intelligence);
+
+  // Render Attachment Intelligence
+  renderAttachmentIntelligence(d.attachment_intelligence);
+
+  // Render Targeted Protection Recommendations
+  renderProtectionRecommendations(d.protection_recommendations);
 
   // Reset feedback buttons
   const btnSafe = document.getElementById('btnFbSafe');

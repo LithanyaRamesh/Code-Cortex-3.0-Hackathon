@@ -609,4 +609,120 @@ def test_gmail_mock_message_ingestion_and_analyze(monkeypatch):
     assert st_after.json()["connected"] is False
 
 
+def test_link_intelligence_extraction_and_classification():
+    # Test link intelligence with lookalike, shortener, IP, and benign HTTPS links
+    sample = (
+        "Hello User,\n"
+        "1. Phishing portal: http://login-verify-auth-session-billing.net/invoice?id=99\n"
+        "2. Shortened link: https://bit.ly/secure-account\n"
+        "3. Direct IP link: http://192.168.1.100:8080/admin\n"
+        "4. Legitimate link: https://docs.github.com/en/billing\n"
+    )
+    r = client.post("/predict", json={"raw_email": sample})
+    assert r.status_code == 200
+    data = r.json()
+    assert "link_intelligence" in data
+    links = data["link_intelligence"]
+    assert len(links) >= 4
+
+    statuses = {l["domain"]: l["status"] for l in links}
+    reasons_map = {l["domain"]: l["reasons"] for l in links}
+
+    # Lookalike should be SUSPICIOUS
+    assert any("login-verify" in d for d in statuses)
+    lookalike_dom = [d for d in statuses if "login-verify" in d][0]
+    assert statuses[lookalike_dom] == "SUSPICIOUS"
+
+    # Bitly should be WARNING (shortener)
+    assert any("bit.ly" in d for d in statuses)
+    assert statuses["bit.ly"] == "WARNING"
+
+    # IP address should be SUSPICIOUS
+    assert any("192.168.1.100" in d for d in statuses)
+    ip_dom = [d for d in statuses if "192.168.1.100" in d][0]
+    assert statuses[ip_dom] == "SUSPICIOUS"
+
+    # GitHub should be CLEAN
+    assert any("github.com" in d for d in statuses)
+    gh_dom = [d for d in statuses if "github.com" in d][0]
+    assert statuses[gh_dom] == "CLEAN"
+
+
+def test_attachment_intelligence_double_extension_and_executables():
+    sample = (
+        "From: accounting@vendor-invoices.com\n"
+        "Subject: Urgent Wire Invoice\n\n"
+        "Please find your updated statement attached: Attachment: invoice_statement.pdf.exe\n"
+        "Also see the backup script: Attachment: run_patch.vbs\n"
+        "And clean file: Attachment: receipt.pdf\n"
+    )
+    r = client.post("/predict", json={"raw_email": sample})
+    assert r.status_code == 200
+    data = r.json()
+    assert "attachment_intelligence" in data
+    atts = data["attachment_intelligence"]
+    assert len(atts) >= 3
+
+    att_map = {a["filename"]: a for a in atts}
+    assert "invoice_statement.pdf.exe" in att_map
+    assert att_map["invoice_statement.pdf.exe"]["is_double_extension"] is True
+    assert att_map["invoice_statement.pdf.exe"]["is_executable"] is True
+    assert att_map["invoice_statement.pdf.exe"]["status"] == "HIGH_RISK"
+
+    assert "run_patch.vbs" in att_map
+    assert att_map["run_patch.vbs"]["is_script"] is True
+    assert att_map["run_patch.vbs"]["status"] == "HIGH_RISK"
+
+    assert "receipt.pdf" in att_map
+    assert att_map["receipt.pdf"]["status"] == "SAFE"
+
+
+def test_evidence_based_risk_score_calculation_and_breakdown():
+    # High threat email with multiple evidence points
+    sample = (
+        "From: CEO <finance-update@ceo-payroll-sec.com>\n"
+        "DKIM-Signature: NONE\n"
+        "Received-SPF: FAIL\n"
+        "Subject: URGENT: Wire Transfer Request $50,000\n\n"
+        "Please execute an immediate wire transfer to http://login-verify-auth-session-billing.net/pay\n"
+        "Attachment: details.zip\n"
+    )
+    r = client.post("/predict", json={"raw_email": sample})
+    assert r.status_code == 200
+    data = r.json()
+    assert "evidence_risk_score" in data
+    score_obj = data["evidence_risk_score"]
+    assert score_obj["score"] >= 60
+    assert score_obj["level"] in ("CRITICAL", "HIGH")
+    assert len(score_obj["components"]) >= 3
+
+    # Check categories in score breakdown
+    categories = [c["category"] for c in score_obj["components"]]
+    assert "sender" in categories or "url" in categories or "financial" in categories
+
+
+def test_dynamic_protection_recommendations():
+    # Phishing + wire + attachment sample
+    sample = (
+        "From: Security <alerts@spoofed-bank.xyz>\n"
+        "Subject: Action Required: Reset Password & Wire Transfer\n\n"
+        "Verify your password immediately at http://login-verify-auth-session-billing.net/reset\n"
+        "Please transfer $2,000. Attachment: form.docx.exe\n"
+    )
+    r = client.post("/predict", json={"raw_email": sample})
+    assert r.status_code == 200
+    data = r.json()
+    assert "protection_recommendations" in data
+    recs = data["protection_recommendations"]
+    assert len(recs) >= 3
+
+    rec_categories = [rec["category"] for rec in recs]
+    assert "link" in rec_categories
+    assert "attachment" in rec_categories
+    assert "credential" in rec_categories or "payment" in rec_categories
+    for rec in recs:
+        assert len(rec["actions"]) >= 2
+
+
+
 

@@ -10,12 +10,13 @@ import logging
 import os
 import re
 import secrets
+import urllib.parse
 import uuid
 
 logger = logging.getLogger("mailshield.api")
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import joblib
 from fastapi import FastAPI, HTTPException, Header, Depends, status, UploadFile, File, Form
@@ -154,6 +155,8 @@ class AnalyzeRequest(BaseModel):
     subject: Optional[str] = None
     body: Optional[str] = None
     sender: Optional[str] = None
+    attachments: Optional[List[Dict[str, Any]]] = None
+    link_details: Optional[List[Dict[str, Any]]] = None
 
 
 class Indicator(BaseModel):
@@ -234,6 +237,60 @@ class AttackerIntent(BaseModel):
     primary_vector: str
 
 
+class LinkIntelligenceItem(BaseModel):
+    url: str
+    display_url: Optional[str] = None
+    domain: str
+    scheme: str = "http"
+    is_https: bool = False
+    is_ip_address: bool = False
+    is_shortener: bool = False
+    has_suspicious_encoding: bool = False
+    has_lookalike_domain: bool = False
+    has_domain_mismatch: bool = False
+    status: str = "CLEAN"  # SUSPICIOUS | WARNING | CLEAN
+    reasons: List[str] = []
+    redirect_chain: Optional[List[str]] = []
+
+
+class AttachmentIntelligenceItem(BaseModel):
+    filename: str
+    mime_type: str = "application/octet-stream"
+    file_size_bytes: int = 0
+    file_size_formatted: str = "0 B"
+    extension: str = ""
+    is_double_extension: bool = False
+    is_executable: bool = False
+    is_script: bool = False
+    is_suspicious_archive: bool = False
+    is_risky_document: bool = False
+    has_mime_mismatch: bool = False
+    status: str = "SAFE"  # HIGH_RISK | WARNING | SAFE
+    reasons: List[str] = []
+
+
+class RiskScoreComponent(BaseModel):
+    rule: str
+    points: int
+    evidence: str
+    category: str  # sender | url | attachment | credential | financial | ml_model | auth
+
+
+class EvidenceRiskScore(BaseModel):
+    score: int
+    max_score: int = 100
+    level: str  # CRITICAL | HIGH | ELEVATED | LOW
+    components: List[RiskScoreComponent] = []
+
+
+class ProtectionRecommendation(BaseModel):
+    category: str  # link | attachment | credential | payment | sender | general
+    title: str
+    icon: str
+    actions: List[str]
+    urgency: str  # IMMEDIATE | HIGH | ADVISORY
+
+
 class AnalyzeResponse(BaseModel):
     verdict: str
     risk_level: str
@@ -249,6 +306,10 @@ class AnalyzeResponse(BaseModel):
     interaction_risk_scores: Dict[str, float] = {}
     containment_playbooks: Dict[str, Any] = {}
     incident_timeline: List[IncidentEvent] = []
+    link_intelligence: List[LinkIntelligenceItem] = []
+    attachment_intelligence: List[AttachmentIntelligenceItem] = []
+    evidence_risk_score: Optional[EvidenceRiskScore] = None
+    protection_recommendations: List[ProtectionRecommendation] = []
     extracted_features: Dict[str, Any]
     spf: str
     dkim: str
@@ -590,7 +651,9 @@ def analyze_gmail_message(
         raw_email=detail.get("raw_rfc822") or detail.get("body"),
         subject=detail.get("subject"),
         body=detail.get("body"),
-        user=user
+        user=user,
+        attachments=detail.get("attachments", []),
+        link_pairs=detail.get("link_pairs", [])
     )
 
 
@@ -802,8 +865,8 @@ def _header_checks(raw: str):
     return dkim, spf, dmarc, len(links), len(suspicious), suspicious, has_auth_headers
 
 
-def _extract_text_from_eml(file_bytes: bytes) -> str:
-    """Safely extracts text content and headers from an .eml RFC 822 file without executing attachments."""
+def _extract_eml_data(file_bytes: bytes) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Safely extracts text, attachments, and link metadata from an .eml RFC 822 file without executing code."""
     try:
         msg = email.message_from_bytes(file_bytes, policy=policy.default)
         headers = []
@@ -822,10 +885,29 @@ def _extract_text_from_eml(file_bytes: bytes) -> str:
                     body_text += part.get_content()
                     break
 
+        attachments = []
+        for part in msg.walk():
+            filename = part.get_filename()
+            if filename:
+                payload = part.get_payload(decode=True)
+                size = len(payload) if payload else 0
+                attachments.append({
+                    "filename": filename,
+                    "mime_type": part.get_content_type() or "application/octet-stream",
+                    "size": size
+                })
+
         header_str = "\n".join(headers)
-        return f"{header_str}\n\n{body_text}".strip() if header_str else body_text.strip()
-    except Exception as e:
-        return file_bytes.decode('utf-8', errors='replace')
+        full_text = f"{header_str}\n\n{body_text}".strip() if header_str else body_text.strip()
+        return full_text, attachments, []
+    except Exception:
+        return file_bytes.decode('utf-8', errors='replace'), [], []
+
+
+def _extract_text_from_eml(file_bytes: bytes) -> str:
+    """Safely extracts text content and headers from an .eml RFC 822 file without executing attachments."""
+    text, _, _ = _extract_eml_data(file_bytes)
+    return text
 
 
 def _find_matches(patterns: List[str], text: str) -> List[str]:
@@ -1060,6 +1142,547 @@ def _evaluate_attacker_intent(
         evidence=["Suspicious message composition matching spam/phishing training patterns"],
         primary_vector="💬 Social Engineering"
     )
+
+
+# --- LINK & ATTACHMENT INTELLIGENCE ENGINES ---
+
+SHORTENER_DOMAINS = {
+    "bit.ly", "tinyurl.com", "t.co", "is.gd", "ow.ly", "buff.ly", "rb.gy", "goo.gl",
+    "cutt.ly", "rebrand.ly", "shorturl.at", "tiny.cc", "adf.ly", "bl.ink", "lnkd.in"
+}
+
+IP_URL_RE = re.compile(r"^https?://(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:/.*)?$", re.IGNORECASE)
+
+EXECUTABLE_EXTS = {"exe", "scr", "msi", "bat", "cmd", "pif", "com", "hta", "cpl"}
+SCRIPT_EXTS = {"js", "vbs", "ps1", "py", "sh", "wsf", "jar"}
+ARCHIVE_EXTS = {"zip", "rar", "7z", "iso", "img", "tar.gz", "tar", "gz", "cab"}
+MACRO_DOC_EXTS = {"docm", "xlsm", "pptm", "dotm", "xltm"}
+
+DOUBLE_EXT_RE = re.compile(
+    r"\.(?:pdf|docx|doc|xlsx|xls|png|jpg|jpeg|txt|csv|rtf)\.(exe|scr|vbs|bat|cmd|js|ps1|hta|msi|zip|rar|iso|pif|com)$",
+    re.IGNORECASE
+)
+
+
+def _format_file_size(size_bytes: int) -> str:
+    if size_bytes <= 0:
+        return "Unknown size"
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    if size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def _evaluate_link_intelligence(
+    combined: str,
+    link_pairs: Optional[List[Dict[str, Any]]] = None
+) -> List[LinkIntelligenceItem]:
+    items: List[LinkIntelligenceItem] = []
+    seen_urls = set()
+
+    candidates: List[Dict[str, Optional[str]]] = []
+    if link_pairs:
+        for lp in link_pairs:
+            u = (lp.get("url") or "").strip()
+            if u:
+                candidates.append({"url": u, "display_url": lp.get("display_url")})
+                seen_urls.add(u)
+
+    found_urls = URL_RE.findall(combined)
+    for fu in found_urls:
+        fu_clean = fu.strip(".,;:)'\"<>")
+        if fu_clean and fu_clean not in seen_urls:
+            candidates.append({"url": fu_clean, "display_url": None})
+            seen_urls.add(fu_clean)
+
+    # Check for HTML anchor tags in text
+    a_tag_re = re.compile(r'<a\s+[^>]*href=["\'](https?://[^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+    for m in a_tag_re.finditer(combined):
+        href = m.group(1).strip()
+        disp = re.sub(r'<[^>]+>', '', m.group(2)).strip()
+        if href and href not in seen_urls:
+            candidates.append({"url": href, "display_url": disp if disp else None})
+            seen_urls.add(href)
+        elif href:
+            for c in candidates:
+                if c["url"] == href and not c["display_url"] and disp:
+                    c["display_url"] = disp
+
+    for c in candidates:
+        url_str = c["url"]
+        display_str = c.get("display_url")
+
+        try:
+            parsed = urllib.parse.urlparse(url_str)
+        except Exception:
+            continue
+
+        domain = (parsed.netloc or parsed.path).split("@")[-1].split(":")[0].lower()
+        scheme = parsed.scheme.lower() if parsed.scheme else "http"
+        is_https = scheme == "https"
+
+        is_ip_addr = bool(re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", domain)) or bool(IP_URL_RE.match(url_str))
+        is_shortener = domain in SHORTENER_DOMAINS or any(domain.endswith("." + s) for s in SHORTENER_DOMAINS)
+
+        has_susp_encoding = False
+        reasons: List[str] = []
+
+        if "@" in (parsed.netloc or ""):
+            has_susp_encoding = True
+            reasons.append("URL contains userinfo '@' symbol attempting destination spoofing")
+
+        if "%20" in url_str or "%2e" in url_str.lower() or "%2f" in url_str.lower():
+            has_susp_encoding = True
+            reasons.append("URL contains obfuscated percent-encoding in path/domain")
+
+        if parsed.port and parsed.port not in (80, 443, 8000, 3000):
+            reasons.append(f"Non-standard network port detected (:{parsed.port})")
+
+        if domain.count(".") >= 4:
+            reasons.append(f"Excessive nested subdomains ({domain.count('.')} levels)")
+
+        has_lookalike = bool(SUSPICIOUS_DOMAIN_RE.search(domain) or SUSPICIOUS_TLD_RE.search(domain) or MALICIOUS_ATTACHMENT_URL_RE.search(url_str))
+        if has_lookalike:
+            reasons.append(f"Suspicious look-alike domain pattern or high-risk TLD ({domain})")
+
+        has_mismatch = False
+        if display_str and ("http" in display_str.lower() or "." in display_str):
+            disp_clean = display_str.lower().strip()
+            disp_clean = re.sub(r"^https?://", "", disp_clean).split("/")[0].split(":")[0]
+            if disp_clean and len(disp_clean) > 3 and "." in disp_clean:
+                if disp_clean != domain and not domain.endswith("." + disp_clean):
+                    has_mismatch = True
+                    reasons.append(f"Domain mismatch: Displayed as '{display_str}' but targets '{domain}'")
+
+        if is_ip_addr:
+            reasons.append("Direct IP-address host used instead of authenticated domain name")
+
+        if is_shortener:
+            reasons.append("URL shortening service used to obscure target destination")
+
+        if not is_https:
+            reasons.append("Insecure plain HTTP protocol (no TLS encryption)")
+
+        # Status determination
+        if is_ip_addr or has_lookalike or has_mismatch or has_susp_encoding:
+            status = "SUSPICIOUS"
+        elif is_shortener or not is_https or (parsed.port and parsed.port not in (80, 443)):
+            status = "WARNING"
+        else:
+            status = "CLEAN"
+            if not reasons:
+                reasons.append("Verified domain syntax with standard HTTPS security")
+
+        items.append(LinkIntelligenceItem(
+            url=url_str,
+            display_url=display_str,
+            domain=domain,
+            scheme=scheme,
+            is_https=is_https,
+            is_ip_address=is_ip_addr,
+            is_shortener=is_shortener,
+            has_suspicious_encoding=has_susp_encoding,
+            has_lookalike_domain=has_lookalike,
+            has_domain_mismatch=has_mismatch,
+            status=status,
+            reasons=reasons,
+            redirect_chain=[url_str]
+        ))
+
+    return items
+
+
+def _evaluate_attachment_intelligence(
+    attachments_data: Optional[List[Dict[str, Any]]],
+    combined_text: str
+) -> List[AttachmentIntelligenceItem]:
+    items: List[AttachmentIntelligenceItem] = []
+    seen_filenames = set()
+
+    raw_candidates: List[Dict[str, Any]] = []
+    if attachments_data:
+        for a in attachments_data:
+            fn = a.get("filename", "").strip()
+            if fn:
+                raw_candidates.append(a)
+                seen_filenames.add(fn.lower())
+
+    # Check for attachments mentioned in RFC 822 text or headers
+    att_line_re = re.compile(r"(?:Attachment:\s*|filename=[\"']?)([\w\-. ]+\.[\w]{2,5})[\"']?", re.IGNORECASE)
+    for m in att_line_re.finditer(combined_text):
+        fn = m.group(1).strip()
+        if fn.lower() not in seen_filenames and "." in fn:
+            raw_candidates.append({
+                "filename": fn,
+                "mime_type": "application/octet-stream",
+                "size": 0
+            })
+            seen_filenames.add(fn.lower())
+
+    for att in raw_candidates:
+        filename = att.get("filename", "unknown_file")
+        mime_type = (att.get("mime_type") or "application/octet-stream").lower()
+        size_bytes = int(att.get("size", 0) or 0)
+        formatted_size = _format_file_size(size_bytes)
+
+        parts = filename.rsplit(".", 1)
+        ext = parts[1].lower() if len(parts) > 1 else ""
+
+        is_double_ext = bool(DOUBLE_EXT_RE.search(filename))
+        is_exec = ext in EXECUTABLE_EXTS
+        is_script = ext in SCRIPT_EXTS
+        is_archive = ext in ARCHIVE_EXTS
+        is_macro = ext in MACRO_DOC_EXTS
+
+        has_mime_mismatch = False
+        if ext in ("pdf", "docx", "xlsx", "png", "jpg") and any(b in mime_type for b in ("executable", "x-msdownload", "application/x-sh", "script")):
+            has_mime_mismatch = True
+
+        reasons: List[str] = []
+        if is_double_ext:
+            reasons.append("Double extension detected to mask executable payload (e.g., .pdf.exe)")
+        if is_exec:
+            reasons.append(f"Executable binary file type (.{ext}) capable of arbitrary code execution")
+        if is_script:
+            reasons.append(f"Script payload (.{ext}) capable of executing operating system commands")
+        if is_archive:
+            reasons.append(f"Compressed archive container (.{ext}) commonly used to bypass gateway email scanners")
+        if is_macro:
+            reasons.append(f"Macro-enabled document format (.{ext}) with embedded Visual Basic / OLE execution potential")
+        if has_mime_mismatch:
+            reasons.append(f"MIME type mismatch: Declared '{mime_type}' conflicts with filename extension '.{ext}'")
+
+        if is_double_ext or is_exec or is_script:
+            status = "HIGH_RISK"
+        elif is_archive or is_macro or has_mime_mismatch:
+            status = "WARNING"
+        else:
+            status = "SAFE"
+            if not reasons:
+                reasons.append(f"Standard non-executable document/media format (.{ext})")
+
+        items.append(AttachmentIntelligenceItem(
+            filename=filename,
+            mime_type=mime_type,
+            file_size_bytes=size_bytes,
+            file_size_formatted=formatted_size,
+            extension=ext,
+            is_double_extension=is_double_ext,
+            is_executable=is_exec,
+            is_script=is_script,
+            is_suspicious_archive=is_archive,
+            is_risky_document=is_macro,
+            has_mime_mismatch=has_mime_mismatch,
+            status=status,
+            reasons=reasons
+        ))
+
+    return items
+
+
+def _calculate_evidence_risk_score(
+    prob_spam: float,
+    dkim: str,
+    spf: str,
+    has_auth_headers: bool,
+    link_items: List[LinkIntelligenceItem],
+    attachment_items: List[AttachmentIntelligenceItem],
+    urgency_triggers: List[str],
+    financial_triggers: List[str],
+    exec_triggers: List[str],
+    credential_triggers: List[str],
+    otp_triggers: List[str],
+    reply_triggers: List[str],
+    sensitive_triggers: List[str]
+) -> EvidenceRiskScore:
+    components: List[RiskScoreComponent] = []
+    total_score = 0
+
+    # 1. Sender Auth / Spoofing
+    if has_auth_headers and (dkim == "FAIL" or spf == "FAIL"):
+        pts = 25
+        components.append(RiskScoreComponent(
+            rule="Cryptographic Authentication Failure (SPF/DKIM spoofing)",
+            points=pts,
+            evidence=f"DKIM: {dkim} | SPF: {spf}",
+            category="sender"
+        ))
+        total_score += pts
+    elif not has_auth_headers and exec_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Executive Authority Spoofing Trigger",
+            points=pts,
+            evidence=f"Executive titles found without verified DKIM signature ({', '.join(exec_triggers[:2])})",
+            category="sender"
+        ))
+        total_score += pts
+
+    # 2. Suspicious URLs
+    suspicious_links = [l for l in link_items if l.status == "SUSPICIOUS"]
+    warning_links = [l for l in link_items if l.status == "WARNING"]
+
+    for l in suspicious_links:
+        pts = 20
+        components.append(RiskScoreComponent(
+            rule=f"Suspicious Phishing URL: {l.domain}",
+            points=pts,
+            evidence="; ".join(l.reasons[:2]),
+            category="url"
+        ))
+        total_score += pts
+
+    for l in [x for x in link_items if x.has_domain_mismatch]:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule=f"Domain Mismatch: {l.domain}",
+            points=pts,
+            evidence=f"Displayed as '{l.display_url}' but points to '{l.domain}'",
+            category="url"
+        ))
+        total_score += pts
+
+    for l in warning_links:
+        if l not in suspicious_links:
+            pts = 10
+            components.append(RiskScoreComponent(
+                rule=f"URL Shortener / Insecure Link: {l.domain}",
+                points=pts,
+                evidence="; ".join(l.reasons[:2]),
+                category="url"
+            ))
+            total_score += pts
+
+    # 3. Attachment Risks
+    for a in attachment_items:
+        if a.status == "HIGH_RISK":
+            pts = 25
+            components.append(RiskScoreComponent(
+                rule=f"High-Risk Weaponized Attachment: {a.filename}",
+                points=pts,
+                evidence="; ".join(a.reasons[:2]),
+                category="attachment"
+            ))
+            total_score += pts
+        elif a.status == "WARNING":
+            pts = 15
+            components.append(RiskScoreComponent(
+                rule=f"Suspicious Attachment Container: {a.filename}",
+                points=pts,
+                evidence="; ".join(a.reasons[:2]),
+                category="attachment"
+            ))
+            total_score += pts
+
+    # 4. Credential Solicitation
+    if credential_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Credential Harvesting Phrasing",
+            points=pts,
+            evidence=f"Solicits password or login verification: '{credential_triggers[0]}'",
+            category="credential"
+        ))
+        total_score += pts
+
+    # 5. Financial & BEC Urgency
+    if urgency_triggers and financial_triggers:
+        pts = 25
+        components.append(RiskScoreComponent(
+            rule="Business Email Compromise (Urgency + Wire Transfer)",
+            points=pts,
+            evidence=f"Urgency '{urgency_triggers[0]}' combined with wire/payment '{financial_triggers[0]}'",
+            category="financial"
+        ))
+        total_score += pts
+    elif financial_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Financial Payment / Routing Request",
+            points=pts,
+            evidence=f"Financial routing keyword: '{financial_triggers[0]}'",
+            category="financial"
+        ))
+        total_score += pts
+    elif urgency_triggers and prob_spam > 0.4:
+        pts = 10
+        components.append(RiskScoreComponent(
+            rule="Coercive Urgency Pressure",
+            points=pts,
+            evidence=f"Urgency deadline: '{urgency_triggers[0]}'",
+            category="financial"
+        ))
+        total_score += pts
+
+    # 6. OTP Interception
+    if otp_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="2FA / OTP Passcode Solicitation",
+            points=pts,
+            evidence=f"Requests one-time passcode: '{otp_triggers[0]}'",
+            category="credential"
+        ))
+        total_score += pts
+
+    # 7. Sensitive Info Solicitation
+    if sensitive_triggers:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Confidential Information Exfiltration Request",
+            points=pts,
+            evidence=f"Solicits sensitive personal or tax records: '{sensitive_triggers[0]}'",
+            category="financial"
+        ))
+        total_score += pts
+
+    # 8. ML Model Semantic Score fallback
+    if prob_spam >= 0.70 and not components:
+        pts = 25
+        components.append(RiskScoreComponent(
+            rule="Machine Learning Semantic Anomaly",
+            points=pts,
+            evidence=f"NLP classifier scored {prob_spam*100:.1f}% phishing pattern confidence",
+            category="ml_model"
+        ))
+        total_score += pts
+    elif prob_spam >= 0.50 and not components:
+        pts = 15
+        components.append(RiskScoreComponent(
+            rule="Machine Learning Elevated Anomaly",
+            points=pts,
+            evidence=f"NLP classifier detected suspicious spam phrasing ({prob_spam*100:.1f}%)",
+            category="ml_model"
+        ))
+        total_score += pts
+
+    # If verified clean
+    if not components:
+        pts = 10 if prob_spam > 0.3 else 5
+        components.append(RiskScoreComponent(
+            rule="Verified Legitimate Communication",
+            points=pts,
+            evidence=f"Message cleared cryptographic, domain, URL, and semantic threat filters ({(1-prob_spam)*100:.1f}% clean)",
+            category="auth"
+        ))
+        total_score = pts
+
+    final_score = min(100, max(0, total_score))
+
+    if final_score >= 75:
+        level = "CRITICAL"
+    elif final_score >= 50:
+        level = "HIGH"
+    elif final_score >= 30:
+        level = "ELEVATED"
+    else:
+        level = "LOW"
+
+    return EvidenceRiskScore(
+        score=final_score,
+        max_score=100,
+        level=level,
+        components=components
+    )
+
+
+def _generate_protection_recommendations(
+    link_items: List[LinkIntelligenceItem],
+    attachment_items: List[AttachmentIntelligenceItem],
+    credential_triggers: List[str],
+    otp_triggers: List[str],
+    financial_triggers: List[str],
+    urgency_triggers: List[str],
+    exec_triggers: List[str],
+    has_auth_fail: bool,
+    risk_level: str
+) -> List[ProtectionRecommendation]:
+    recs: List[ProtectionRecommendation] = []
+
+    has_suspicious_links = any(l.status in ("SUSPICIOUS", "WARNING") for l in link_items)
+    has_risky_attachments = any(a.status in ("HIGH_RISK", "WARNING") for a in attachment_items)
+    is_credential = bool(credential_triggers or otp_triggers)
+    is_financial = bool(financial_triggers or (urgency_triggers and financial_triggers))
+
+    if has_suspicious_links:
+        recs.append(ProtectionRecommendation(
+            category="link",
+            title="Suspicious Link Isolation",
+            icon="🔗",
+            actions=[
+                "Do NOT click or tap any links contained in this email.",
+                "Verify the website destination independently by typing the official domain directly into your browser.",
+                "Report the deceptive URL to your organization's IT or SOC security team."
+            ],
+            urgency="IMMEDIATE"
+        ))
+
+    if has_risky_attachments:
+        recs.append(ProtectionRecommendation(
+            category="attachment",
+            title="Dangerous Attachment Handling",
+            icon="📎",
+            actions=[
+                "Do NOT open, extract, or execute any attached files or archives.",
+                "Verify the sender's identity through a secondary, out-of-band communication channel (phone call or internal messenger).",
+                "Scan the file with enterprise endpoint detection and response (EDR) software before taking any action."
+            ],
+            urgency="IMMEDIATE"
+        ))
+
+    if is_credential:
+        recs.append(ProtectionRecommendation(
+            category="credential",
+            title="Credential Phishing Defense",
+            icon="🔑",
+            actions=[
+                "Do NOT enter your password, username, or OTP on any webpage reached from this email.",
+                "Open the official organization portal or app manually to verify any required account action.",
+                "Enable Multi-Factor Authentication (MFA/2FA) on your account if not already active."
+            ],
+            urgency="HIGH"
+        ))
+
+    if is_financial:
+        recs.append(ProtectionRecommendation(
+            category="payment",
+            title="Payment & Wire Fraud Prevention",
+            icon="💳",
+            actions=[
+                "Do NOT make the payment, wire funds, or change direct deposit details based on this request.",
+                "Verify the payment request verbally with the requester using known, established phone numbers.",
+                "Report the unauthorized payment request to your finance or compliance officer immediately."
+            ],
+            urgency="IMMEDIATE"
+        ))
+
+    if has_auth_fail or exec_triggers:
+        recs.append(ProtectionRecommendation(
+            category="sender",
+            title="Sender Identity & Domain Verification",
+            icon="👤",
+            actions=[
+                "Inspect the full RFC 822 sender email header address for subtle lookalike domain typos.",
+                "Do NOT reply directly to the email, as the attacker may control the reply-to address.",
+                "Check your internal directory to confirm if the communication aligns with standard company procedures."
+            ],
+            urgency="HIGH"
+        ))
+
+    if not recs:
+        recs.append(ProtectionRecommendation(
+            category="general",
+            title="Verified Clean Communication",
+            icon="🛡️",
+            actions=[
+                "This message passed SPF/DKIM verification, domain reputation checks, and AI threat analysis.",
+                "Standard vigilance is still recommended when interacting with unknown external contacts."
+            ],
+            urgency="ADVISORY"
+        ))
+
+    return recs
 
 
 def _evaluate_attack_surface(
@@ -1307,10 +1930,16 @@ def _process_analysis(
     subject: Optional[str] = None,
     body: Optional[str] = None,
     user: Optional[Dict[str, Any]] = None,
-    sender: Optional[str] = None
+    sender: Optional[str] = None,
+    attachments: Optional[List[Dict[str, Any]]] = None,
+    link_pairs: Optional[List[Dict[str, Any]]] = None,
+    link_details: Optional[List[Dict[str, Any]]] = None
 ) -> AnalyzeResponse:
     if _classifier is None or _vectorizer is None:
         _load_model()
+
+    if link_details and not link_pairs:
+        link_pairs = link_details
 
     # Construct unified content
     combined = ""
@@ -1341,6 +1970,16 @@ def _process_analysis(
     reply_triggers = _find_matches(REPLY_PATTERNS, combined)
     attachment_triggers = _find_matches(ATTACHMENT_PATTERNS, combined)
     sensitive_triggers = _find_matches(SENSITIVE_DATA_PATTERNS, combined)
+
+    # 1. Link Intelligence Deep Evaluation
+    link_intelligence = _evaluate_link_intelligence(combined, link_pairs=link_pairs)
+    for l in link_intelligence:
+        if l.status == "SUSPICIOUS" and l.url not in susp_urls:
+            susp_urls.append(l.url)
+            n_suspicious += 1
+
+    # 2. Attachment Intelligence Deep Evaluation
+    attachment_intelligence = _evaluate_attachment_intelligence(attachments_data=attachments, combined_text=combined)
 
     indicators: List[Indicator] = []
     evidence_items: List[EvidenceItem] = []
@@ -1652,6 +2291,37 @@ def _process_analysis(
         spf=spf
     )
 
+    # Evidence-Based Explainable Risk Score
+    has_auth_fail = bool(has_auth_headers and (dkim == "FAIL" or spf == "FAIL"))
+    evidence_risk_score = _calculate_evidence_risk_score(
+        prob_spam=prob_spam,
+        dkim=dkim,
+        spf=spf,
+        has_auth_headers=has_auth_headers,
+        link_items=link_intelligence,
+        attachment_items=attachment_intelligence,
+        urgency_triggers=urgency_triggers,
+        financial_triggers=financial_triggers,
+        exec_triggers=exec_triggers,
+        credential_triggers=credential_triggers,
+        otp_triggers=otp_triggers,
+        reply_triggers=reply_triggers,
+        sensitive_triggers=sensitive_triggers
+    )
+
+    # Targeted Protection Recommendations
+    protection_recommendations = _generate_protection_recommendations(
+        link_items=link_intelligence,
+        attachment_items=attachment_intelligence,
+        credential_triggers=credential_triggers,
+        otp_triggers=otp_triggers,
+        financial_triggers=financial_triggers,
+        urgency_triggers=urgency_triggers,
+        exec_triggers=exec_triggers,
+        has_auth_fail=has_auth_fail,
+        risk_level=risk_level
+    )
+
     result = AnalyzeResponse(
         verdict=verdict,
         risk_level=risk_level,
@@ -1667,6 +2337,10 @@ def _process_analysis(
         interaction_risk_scores=as_eval["interaction_risk_scores"],
         containment_playbooks=as_eval["containment_playbooks"],
         incident_timeline=as_eval["incident_timeline"],
+        link_intelligence=link_intelligence,
+        attachment_intelligence=attachment_intelligence,
+        evidence_risk_score=evidence_risk_score,
+        protection_recommendations=protection_recommendations,
         extracted_features=extracted_features,
         spf=spf, dkim=dkim, dmarc=dmarc,
         suspicious_links=n_suspicious,
@@ -1691,12 +2365,28 @@ def _process_analysis(
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, sender=req.sender, user=user)
+    return _process_analysis(
+        raw_email=req.raw_email,
+        subject=req.subject,
+        body=req.body,
+        sender=req.sender,
+        attachments=req.attachments,
+        link_details=req.link_details,
+        user=user
+    )
 
 
 @app.post("/predict", response_model=AnalyzeResponse)
 def predict(req: AnalyzeRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, sender=req.sender, user=user)
+    return _process_analysis(
+        raw_email=req.raw_email,
+        subject=req.subject,
+        body=req.body,
+        sender=req.sender,
+        attachments=req.attachments,
+        link_details=req.link_details,
+        user=user
+    )
 
 
 @app.post("/analyze/file", response_model=AnalyzeResponse)
@@ -1721,15 +2411,22 @@ async def analyze_file(
             detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES // (1024*1024)}MB."
         )
 
+    attachments = []
+    link_details = []
     if ext == ".eml":
-        extracted_text = _extract_text_from_eml(content_bytes)
+        extracted_text, attachments, link_details = _extract_eml_data(content_bytes)
     else:
         extracted_text = content_bytes.decode("utf-8", errors="replace")
 
     if not extracted_text.strip():
         raise HTTPException(400, "Uploaded file contains no readable text content.")
 
-    return _process_analysis(raw_email=extracted_text, user=user)
+    return _process_analysis(
+        raw_email=extracted_text,
+        attachments=attachments,
+        link_details=link_details,
+        user=user
+    )
 
 
 @app.post("/predict/file", response_model=AnalyzeResponse)

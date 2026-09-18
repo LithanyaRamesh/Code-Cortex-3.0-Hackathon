@@ -330,9 +330,25 @@ def get_gmail_message_detail(access_token: str, message_id: str) -> Dict[str, An
     else:
         body_text = msg.get("snippet", "")
     
-    # Extract URLs from body and HTML
+    # Extract URLs from body and HTML with anchor text tracking
     url_pattern = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
     extracted_urls = list(set(url_pattern.findall(body_text + " " + " ".join(html_parts))))
+    
+    # Extract <a href="...">text</a> pairs for visible-vs-actual link mismatch checks
+    link_pairs = []
+    a_tag_re = re.compile(r'<a\s+[^>]*href=["\'](https?://[^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+    for h in html_parts:
+        for m in a_tag_re.finditer(h):
+            href = m.group(1).strip()
+            anchor = _strip_html(m.group(2)).strip()
+            link_pairs.append({"url": href, "display_url": anchor if anchor else None})
+    
+    # Also add body plain URLs to link_pairs if not already present
+    seen_urls = {p["url"] for p in link_pairs}
+    for u in extracted_urls:
+        if u not in seen_urls:
+            link_pairs.append({"url": u, "display_url": None})
+            seen_urls.add(u)
     
     # Evaluate SPF/DKIM/DMARC from headers
     spf = "PASS" if ("spf=pass" in auth_results.lower() or "pass" in received_spf.lower()) else ("FAIL" if ("spf=fail" in auth_results.lower() or "fail" in received_spf.lower()) else "UNKNOWN")
@@ -374,6 +390,7 @@ def get_gmail_message_detail(access_token: str, message_id: str) -> Dict[str, An
         "raw_rfc822": raw_rfc822,
         "attachments": attachments,
         "urls": extracted_urls,
+        "link_pairs": link_pairs,
         "spf": spf,
         "dkim": dkim,
         "dmarc": dmarc,
