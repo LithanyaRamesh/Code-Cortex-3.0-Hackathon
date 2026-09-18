@@ -136,9 +136,9 @@ def get_missing_oauth_variables() -> List[str]:
     cid = get_google_client_id()
     secret = get_google_client_secret()
 
-    if not cid or cid.startswith("YOUR_") or "example" in cid.lower():
+    if not cid or not cid.strip():
         missing.append("GOOGLE_CLIENT_ID")
-    if not secret or secret.startswith("YOUR_") or "example" in secret.lower():
+    if not secret or not secret.strip():
         missing.append("GOOGLE_CLIENT_SECRET")
     return missing
 
