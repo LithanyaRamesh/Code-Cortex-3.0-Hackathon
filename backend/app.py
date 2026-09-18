@@ -153,6 +153,7 @@ class AnalyzeRequest(BaseModel):
     raw_email: Optional[str] = None
     subject: Optional[str] = None
     body: Optional[str] = None
+    sender: Optional[str] = None
 
 
 class Indicator(BaseModel):
@@ -1305,7 +1306,8 @@ def _process_analysis(
     raw_email: Optional[str] = None,
     subject: Optional[str] = None,
     body: Optional[str] = None,
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[Dict[str, Any]] = None,
+    sender: Optional[str] = None
 ) -> AnalyzeResponse:
     if _classifier is None or _vectorizer is None:
         _load_model()
@@ -1314,10 +1316,11 @@ def _process_analysis(
     combined = ""
     if raw_email and raw_email.strip():
         combined = raw_email.strip()
-    elif subject or body:
+    elif subject or body or sender:
+        from_part = f"From: {sender.strip()}\n" if sender and sender.strip() else ""
         s_part = f"Subject: {subject.strip()}\n" if subject and subject.strip() else ""
         b_part = body.strip() if body else ""
-        combined = f"{s_part}\n{b_part}".strip()
+        combined = f"{from_part}{s_part}\n{b_part}".strip()
 
     if not combined:
         raise HTTPException(400, "Email content or subject/body must not be empty.")
@@ -1688,12 +1691,12 @@ def _process_analysis(
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, user=user)
+    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, sender=req.sender, user=user)
 
 
 @app.post("/predict", response_model=AnalyzeResponse)
 def predict(req: AnalyzeRequest, user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)):
-    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, user=user)
+    return _process_analysis(raw_email=req.raw_email, subject=req.subject, body=req.body, sender=req.sender, user=user)
 
 
 @app.post("/analyze/file", response_model=AnalyzeResponse)

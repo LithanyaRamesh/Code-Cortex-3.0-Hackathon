@@ -76,6 +76,20 @@ def test_predict_structured_subject_and_body():
     assert len(body["indicators"]) > 0
 
 
+def test_predict_structured_with_sender_option():
+    r = client.post("/predict", json={
+        "sender": "payroll-update@security-alert-verify.com",
+        "subject": "ACTION REQUIRED: Confirm credentials",
+        "body": "Please verify your account password immediately at http://login-verify-auth-session-billing.net/login."
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert "scan_id" in body
+    assert body["risk_level"] in ("Critical", "Elevated")
+    assert body["attacker_intent"] is not None
+    assert len(body["attack_surface_vectors"]) == 8
+
+
 def test_predict_legit_sample():
     sample = (
         "From: GitHub Billing <billing@github.com>\n"

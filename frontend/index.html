@@ -343,14 +343,27 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .timeline-event-body b{font-size:12.5px; color:var(--text); display:block;}
 .timeline-event-body span{color:var(--sub); font-size:11.5px; line-height:1.4;}
 
+/* DUAL OPTION ANALYSIS SELECTOR */
+.analysis-options-header{display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:center; margin-bottom:22px;}
+.analysis-option-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px; cursor:pointer; transition:all .22s ease; position:relative; overflow:hidden;}
+.analysis-option-card:hover{border-color:var(--cyan); background:rgba(34,211,238,0.04); transform:translateY(-2px);}
+.analysis-option-card.active{border-color:var(--cyan); background:linear-gradient(135deg, rgba(34,211,238,0.1), rgba(59,130,246,0.05)); box-shadow:0 0 24px rgba(34,211,238,0.18);}
+.option-card-badge{position:absolute; top:14px; right:16px; font-size:10px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--cyan); background:rgba(34,211,238,0.15); border:1px solid rgba(34,211,238,0.3); padding:2px 8px; border-radius:12px;}
+.option-card-icon{font-size:28px; margin-bottom:10px;}
+.option-card-title{font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;}
+.option-card-subtitle{font-size:12.5px; color:var(--sub); margin-bottom:10px; line-height:1.4;}
+.option-card-status{font-size:11px; color:#c8ccdb; font-weight:600;}
+.analysis-option-divider{display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--sub2); font-weight:800; font-size:12px; letter-spacing:0.08em;}
+
 /* LIVE GMAIL INBOX & STREAM */
 .inbox-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;}
 .inbox-header-bar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
 .inbox-status-badge{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:5px 12px; border-radius:20px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); color:var(--green);}
 .inbox-status-badge.disconnected{background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.3); color:var(--amber);}
-.inbox-stream-list{display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+.inbox-stream-list{display:flex; flex-direction:column; gap:8px; margin-top:12px; max-height:360px; overflow-y:auto;}
 .inbox-email-row{background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:12px 14px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:all .18s ease;}
 .inbox-email-row:hover{border-color:var(--cyan); background:#1a233a; transform:translateX(2px);}
+.inbox-email-row.selected{border-color:var(--cyan); background:rgba(34,211,238,0.12); box-shadow:0 0 16px rgba(34,211,238,0.2);}
 .inbox-unread-dot{width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); flex-shrink:0;}
 .inbox-unread-dot.read{background:transparent; box-shadow:none;}
 .inbox-avatar{width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--cyan)); color:#00232b; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
@@ -363,11 +376,21 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
 .btn-inspect-email{background:rgba(34,211,238,0.15); border:1px solid rgba(34,211,238,0.35); color:var(--cyan); font-weight:600; font-size:11.5px; padding:6px 12px; border-radius:6px; white-space:nowrap; cursor:pointer; transition:all .15s;}
 .btn-inspect-email:hover{background:var(--cyan); color:#00232b;}
 .inbox-empty-state{text-align:center; padding:32px 20px; color:var(--sub); font-size:13px;}
-.inbox-connect-cta{background:linear-gradient(135deg, rgba(34,211,238,0.06), rgba(17,23,38,0.95)); border:1px dashed rgba(34,211,238,0.35); border-radius:12px; padding:24px; text-align:center; margin-top:12px;}
-.inbox-fallback-toggle{display:flex; align-items:center; justify-content:space-between; background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-top:16px; cursor:pointer;}
-.inbox-fallback-toggle:hover{border-color:var(--cyan);}
+.inbox-connect-cta{background:linear-gradient(135deg, rgba(34,211,238,0.06), rgba(17,23,38,0.95)); border:1px dashed rgba(34,211,238,0.35); border-radius:12px; padding:28px 24px; text-align:center; margin-top:12px;}
 
-@media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid,.scan-stage-row,.shield-command-grid,.attack-surface-grid,.containment-btn-grid{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
+/* EMAIL PREVIEW PANEL (WHEN GMAIL EMAIL IS SELECTED) */
+.email-preview-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:18px;}
+.email-preview-header{padding-bottom:14px; border-bottom:1px solid var(--border);}
+.meta-pill{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px; background:var(--card2); border:1px solid var(--border); color:var(--text);}
+.meta-pill.alert{background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.35); color:#fca5a5;}
+.meta-pill.link-alert{background:rgba(34,211,238,0.12); border-color:rgba(34,211,238,0.35); color:var(--cyan);}
+.link-item-pill{display:flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--border); border-radius:5px; padding:4px 8px; font-size:11.5px; color:var(--cyan); word-break:break-all;}
+.att-item-pill{display:inline-flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-size:12px; color:var(--text);}
+.email-preview-body-box{background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:16px; margin:14px 0; max-height:280px; overflow-y:auto;}
+.email-body-pre{white-space:pre-wrap; word-wrap:break-word; font-family:inherit; font-size:13px; color:#e2e8f0; line-height:1.6; margin:0;}
+.email-preview-footer{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border);}
+
+@media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid,.scan-stage-row,.shield-command-grid,.attack-surface-grid,.containment-btn-grid,.analysis-options-header{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
 </style>
 </head>
 <body>
@@ -589,96 +612,94 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
       </div>
     </div>
 
-    <!-- 2. EMAIL SCANNER / REAL INBOX INGESTION -->
+    <!-- 2. EMAIL SCANNER / DUAL OPTION INGESTION -->
     <div class="page hidden" id="page-analyze">
-      <!-- LIVE GMAIL INGESTION MAILBOX -->
-      <div class="inbox-card" id="gmailInboxCard">
-        <div class="inbox-header-bar">
-          <div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
-              <h4 style="font-size:17px; margin-bottom:0;">📥 Live Ingested Mailbox Stream</h4>
-              <div id="gmailStatusBadge" class="inbox-status-badge disconnected"><span>⏳</span><span>Checking Gmail Status...</span></div>
-            </div>
-            <p class="sub" style="margin-bottom:0;">Select any real incoming email to automatically ingest headers, attachments, and URLs for deep AI Attack Surface inspection.</p>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <button class="btn-secondary" id="btnSyncGmail" style="padding:7px 14px; font-size:12px;" onclick="loadGmailInbox(true)">🔄 Sync Inbox</button>
-            <button class="btn-secondary hidden" id="btnDisconnectGmail" style="padding:7px 12px; font-size:12px; color:var(--red);" onclick="disconnectGmailAccount()">Disconnect</button>
-          </div>
+      
+      <!-- TWO CLEAR CHOICES SELECTOR -->
+      <div class="analysis-options-header">
+        <div class="analysis-option-card active" id="cardOptionGoogle" onclick="setAnalysisOption('google')">
+          <div class="option-card-badge">Option 1</div>
+          <div class="option-card-icon">📬</div>
+          <div class="option-card-title">Continue with Google</div>
+          <div class="option-card-subtitle">Connect Gmail and analyze real emails</div>
+          <div class="option-card-status" id="googleOptionStatusText">Google OAuth • Read-Only Gmail Ingestion</div>
         </div>
 
-        <!-- Search / Filter Bar -->
-        <div id="inboxControlsBar" class="row-between hidden" style="margin-top:12px; gap:10px;">
-          <input class="search" id="inboxSearchInput" placeholder="🔍 Search sender, subject or snippet..." style="max-width:420px; flex:1;" oninput="filterGmailInbox(this.value)">
-          <div style="display:flex; gap:6px;">
-            <button class="inspect-mode-btn active" id="btnFilterAll" onclick="setInboxFilter('all')">All</button>
-            <button class="inspect-mode-btn" id="btnFilterUnread" onclick="setInboxFilter('unread')">Unread</button>
-          </div>
+        <div class="analysis-option-divider">
+          <span>OR</span>
         </div>
 
-        <!-- Connection CTA when Gmail is not connected -->
-        <div id="inboxConnectCta" class="inbox-connect-cta hidden">
-          <div style="font-size:32px; margin-bottom:8px;">📬</div>
-          <h3 style="font-size:16px; margin-bottom:6px;">Connect Your Gmail Account</h3>
-          <p style="color:#c8ccdb; font-size:13px; max-width:540px; margin:0 auto 16px; line-height:1.5;">
-            Ingest and scan real incoming emails directly from your inbox using secure Google OAuth 2.0 (read-only access). No manual copy-pasting required.
-          </p>
-          <button class="btn-google" style="margin:0 auto; display:inline-flex;" onclick="connectGmailAccount()">
-            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.2-2 .4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
-            Connect Gmail Inbox
-          </button>
-        </div>
-
-        <!-- Live Ingested Email Stream List -->
-        <div id="inboxStreamContainer" class="inbox-stream-list hidden">
-          <div class="inbox-empty-state"><div class="empty-state-icon">⏳</div>Loading live inbox messages...</div>
-        </div>
-
-        <!-- AI SCANNING PIPELINE HUD (Shown during automated ingestion & analysis) -->
-        <div class="scanning-hud hidden" id="scanningHud" style="margin-top:16px;">
-          <div class="row-between">
-            <div>
-              <b style="font-size:13px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
-                <span class="dot" style="background:var(--cyan); animation:pulseSafe 1s infinite;"></span>
-                <span>AI Ingestion &amp; Threat Detection Pipeline Active</span>
-              </b>
-              <span style="color:var(--sub); font-size:11px;" id="scanStageStatusText">Ingesting MIME content and executing deep forensic checks...</span>
-            </div>
-            <span class="badge med" id="scanProgressPct" style="font-family:monospace; font-size:11px;">0%</span>
-          </div>
-
-          <div class="scan-stage-row">
-            <div class="scan-stage" id="stage1">
-              <div class="scan-stage-head"><span>1. MIME Ingestion</span><span id="stIcon1">⏳</span></div>
-              <div class="scan-stage-body">Extract headers, body, URLs &amp; attachments</div>
-            </div>
-            <div class="scan-stage" id="stage2">
-              <div class="scan-stage-head"><span>2. Cryptographic Check</span><span id="stIcon2">⏳</span></div>
-              <div class="scan-stage-body">SPF, DKIM, DMARC forensic alignment</div>
-            </div>
-            <div class="scan-stage" id="stage3">
-              <div class="scan-stage-head"><span>3. NLP Vectors</span><span id="stIcon3">⏳</span></div>
-              <div class="scan-stage-body">TF-IDF tokenization &amp; urgency patterns</div>
-            </div>
-            <div class="scan-stage" id="stage4">
-              <div class="scan-stage-head"><span>4. Attack Surface</span><span id="stIcon4">⏳</span></div>
-              <div class="scan-stage-body">8-vector trigger map &amp; containment defense</div>
-            </div>
-          </div>
+        <div class="analysis-option-card" id="cardOptionManual" onclick="setAnalysisOption('manual')">
+          <div class="option-card-badge">Option 2</div>
+          <div class="option-card-icon">📝</div>
+          <div class="option-card-title">Analyze Manually</div>
+          <div class="option-card-subtitle">Paste an email and analyze it</div>
+          <div class="option-card-status">Subject + Body / Sender / Threat Samples</div>
         </div>
       </div>
 
-      <!-- OPTIONAL / FALLBACK MANUAL & SANDBOX DRAWER -->
-      <div class="card" style="margin-bottom:20px;">
-        <div class="inbox-fallback-toggle" onclick="toggleFallbackDrawer()">
-          <div>
-            <b style="font-size:13.5px; color:var(--text);">📝 Manual Email &amp; Sandbox Input (Fallback Mode)</b>
-            <p class="sub" style="margin:2px 0 0; font-size:11.5px;">For offline analysis, custom RFC 822 source pasting, or test file uploads.</p>
+      <!-- OPTION 1: GOOGLE / GMAIL INGESTION SECTION -->
+      <div id="sectionOptionGoogle">
+        <div class="inbox-card" id="gmailInboxCard">
+          <div class="inbox-header-bar">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
+                <h4 style="font-size:17px; margin-bottom:0;">📥 Live Ingested Gmail Stream</h4>
+                <div id="gmailStatusBadge" class="inbox-status-badge disconnected"><span>⏳</span><span>Checking Gmail Status...</span></div>
+              </div>
+              <p class="sub" style="margin-bottom:0;">Select any real incoming email from your connected inbox to review full contents and inspect threat surfaces.</p>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button class="btn-secondary" id="btnSyncGmail" style="padding:7px 14px; font-size:12px;" onclick="loadGmailInbox(true)">🔄 Sync Inbox</button>
+              <button class="btn-secondary hidden" id="btnDisconnectGmail" style="padding:7px 12px; font-size:12px; color:var(--red);" onclick="disconnectGmailAccount()">Disconnect</button>
+            </div>
           </div>
-          <span id="fallbackDrawerIcon" style="font-size:14px; color:var(--sub);">▼ Expand</span>
+
+          <!-- Search / Filter Bar -->
+          <div id="inboxControlsBar" class="row-between hidden" style="margin-top:12px; gap:10px;">
+            <input class="search" id="inboxSearchInput" placeholder="🔍 Search sender, subject or snippet..." style="max-width:420px; flex:1;" oninput="filterGmailInbox(this.value)">
+            <div style="display:flex; gap:6px;">
+              <button class="inspect-mode-btn active" id="btnFilterAll" onclick="setInboxFilter('all')">All</button>
+              <button class="inspect-mode-btn" id="btnFilterUnread" onclick="setInboxFilter('unread')">Unread</button>
+            </div>
+          </div>
+
+          <!-- Connection CTA when Gmail is not connected -->
+          <div id="inboxConnectCta" class="inbox-connect-cta hidden">
+            <div style="font-size:36px; margin-bottom:10px;">📬</div>
+            <h3 style="font-size:17px; margin-bottom:6px;">Option 1: Continue with Google</h3>
+            <p style="color:#c8ccdb; font-size:13px; max-width:540px; margin:0 auto 18px; line-height:1.5;">
+              Connect your real Gmail inbox using secure Google OAuth 2.0 (read-only permission). Select any real incoming email to inspect headers, attachments, URLs, and threat surface.
+            </p>
+            <button class="btn-google" style="margin:0 auto; display:inline-flex; max-width:280px;" onclick="connectGmailAccount()">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.2-2 .4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
+              Continue with Google
+            </button>
+          </div>
+
+          <!-- Live Ingested Email Stream List -->
+          <div id="inboxStreamContainer" class="inbox-stream-list hidden">
+            <div class="inbox-empty-state"><div class="empty-state-icon">⏳</div>Loading live inbox messages...</div>
+          </div>
         </div>
 
-        <div id="fallbackDrawerContent" class="hidden" style="margin-top:16px;">
+        <!-- SELECTED GMAIL EMAIL INSPECTION & PREVIEW PANEL -->
+        <div class="email-preview-card hidden" id="gmailSelectedEmailCard">
+          <!-- Dynamically loaded when user clicks any email in the list -->
+        </div>
+      </div>
+
+      <!-- OPTION 2: MANUAL EMAIL ANALYSIS SECTION -->
+      <div id="sectionOptionManual" class="hidden">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="row-between" style="margin-bottom:14px;">
+            <div>
+              <h4 style="font-size:17px; margin-bottom:2px;">📝 Option 2 — Manual Email Analysis</h4>
+              <p class="sub" style="margin-bottom:0;">Enter email subject, body, and optional sender details to analyze any message using the MailShield AI security pipeline.</p>
+            </div>
+            <span class="badge low">Sandbox Ready</span>
+          </div>
+
           <!-- Mode Selector -->
           <div class="inspect-modes">
             <button class="inspect-mode-btn active" id="btnModeStructured" onclick="switchInspectMode('structured')">Structured (Subject + Body)</button>
@@ -693,6 +714,10 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
             <div>
               <!-- Structured Mode Inputs -->
               <div id="modeStructuredView">
+                <div class="field" style="margin-bottom:10px;">
+                  <label>Sender / From (Optional)</label>
+                  <input id="senderInput" placeholder="e.g. security-update@paypal-support.xyz" oninput="updateCount()">
+                </div>
                 <div class="field" style="margin-bottom:10px;">
                   <label>Email Subject Line</label>
                   <input id="subjectInput" placeholder="e.g. URGENT: Executive Wire Transfer Request #99402" oninput="updateCount()">
@@ -727,8 +752,8 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
               </div>
 
               <div class="footer-row">
-                <span class="safe-note">🛡️ Production ML (98.51% Accuracy) • Secure Sandbox Execution</span>
-                <button class="btn-primary" id="btnAnalyze" style="padding:13px 24px;" onclick="executeAnalysis()">⚡ Analyze Email Threats</button>
+                <span class="safe-note">🛡️ Production ML (98.51% Accuracy) • Multi-Vector Security Pipeline</span>
+                <button class="btn-primary" id="btnAnalyze" style="padding:13px 24px;" onclick="executeAnalysis()">⚡ Analyze Email</button>
               </div>
               <div id="analyzeErr" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
             </div>
@@ -738,6 +763,39 @@ pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radiu
               <div class="tip"><b>Explainable AI (XAI)</b><p>Flagged messages identify exact keywords (wire transfer, urgency pressure, lookalike links) explaining why the threat was quarantined.</p></div>
               <div class="tip"><b>Safe Non-Executable Parsing</b><p>Uploaded <code>.eml</code> files are safely parsed in a non-executable sandbox; scripts or embedded macros are never run.</p></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI SCANNING PIPELINE HUD (Shown during automated ingestion & analysis) -->
+      <div class="scanning-hud hidden" id="scanningHud" style="margin-top:16px;">
+        <div class="row-between">
+          <div>
+            <b style="font-size:13px; color:var(--cyan); display:flex; align-items:center; gap:8px;">
+              <span class="dot" style="background:var(--cyan); animation:pulseSafe 1s infinite;"></span>
+              <span>MailShield AI Threat Detection Pipeline Active</span>
+            </b>
+            <span style="color:var(--sub); font-size:11px;" id="scanStageStatusText">Ingesting MIME content and executing deep forensic checks...</span>
+          </div>
+          <span class="badge med" id="scanProgressPct" style="font-family:monospace; font-size:11px;">0%</span>
+        </div>
+
+        <div class="scan-stage-row">
+          <div class="scan-stage" id="stage1">
+            <div class="scan-stage-head"><span>1. MIME Ingestion</span><span id="stIcon1">⏳</span></div>
+            <div class="scan-stage-body">Extract headers, body, URLs &amp; attachments</div>
+          </div>
+          <div class="scan-stage" id="stage2">
+            <div class="scan-stage-head"><span>2. Cryptographic Check</span><span id="stIcon2">⏳</span></div>
+            <div class="scan-stage-body">SPF, DKIM, DMARC forensic alignment</div>
+          </div>
+          <div class="scan-stage" id="stage3">
+            <div class="scan-stage-head"><span>3. NLP Vectors</span><span id="stIcon3">⏳</span></div>
+            <div class="scan-stage-body">TF-IDF tokenization &amp; urgency patterns</div>
+          </div>
+          <div class="scan-stage" id="stage4">
+            <div class="scan-stage-head"><span>4. Attack Surface</span><span id="stIcon4">⏳</span></div>
+            <div class="scan-stage-body">8-vector trigger map &amp; containment defense</div>
           </div>
         </div>
       </div>
@@ -1225,6 +1283,8 @@ function renderSamples(){
 
 function loadSample(k){
   const s = samples[k];
+  const senderField = document.getElementById('senderInput');
+  if(senderField) senderField.value = s.sub || '';
   document.getElementById('subjectInput').value = s.subject || '';
   document.getElementById('bodyInput').value = s.body || '';
   document.getElementById('emailInput').value = s.text;
@@ -1232,6 +1292,8 @@ function loadSample(k){
 }
 
 function clearInput(){
+  const senderField = document.getElementById('senderInput');
+  if(senderField) senderField.value = '';
   document.getElementById('subjectInput').value = '';
   document.getElementById('bodyInput').value = '';
   document.getElementById('emailInput').value = '';
@@ -1241,10 +1303,12 @@ function clearInput(){
 }
 
 function updateCount(){
-  const rawLen = document.getElementById('emailInput').value.length;
-  const bodyLen = document.getElementById('bodyInput').value.length;
-  document.getElementById('charCount').textContent = rawLen + ' characters';
-  document.getElementById('bodyCharCount').textContent = bodyLen + ' characters';
+  const rawLen = document.getElementById('emailInput')?.value.length || 0;
+  const bodyLen = document.getElementById('bodyInput')?.value.length || 0;
+  const charEl = document.getElementById('charCount');
+  const bodyCharEl = document.getElementById('bodyCharCount');
+  if(charEl) charEl.textContent = rawLen + ' characters';
+  if(bodyCharEl) bodyCharEl.textContent = bodyLen + ' characters';
 }
 
 function switchInspectMode(mode){
@@ -2184,12 +2248,37 @@ let gmailConnected = false;
 let gmailInboxMessages = [];
 let currentInboxFilter = 'all';
 
+let currentAnalysisOption = 'google';
+let currentSelectedGmailMessage = null;
+
+function setAnalysisOption(option){
+  currentAnalysisOption = option;
+  const cardGoogle = document.getElementById('cardOptionGoogle');
+  const cardManual = document.getElementById('cardOptionManual');
+  const secGoogle = document.getElementById('sectionOptionGoogle');
+  const secManual = document.getElementById('sectionOptionManual');
+
+  if(option === 'google'){
+    if(cardGoogle) cardGoogle.classList.add('active');
+    if(cardManual) cardManual.classList.remove('active');
+    if(secGoogle) secGoogle.classList.remove('hidden');
+    if(secManual) secManual.classList.add('hidden');
+    checkAndLoadGmailInbox();
+  } else {
+    if(cardGoogle) cardGoogle.classList.remove('active');
+    if(cardManual) cardManual.classList.add('active');
+    if(secGoogle) secGoogle.classList.add('hidden');
+    if(secManual) secManual.classList.remove('hidden');
+  }
+}
+
 async function checkAndLoadGmailInbox(force = false){
   const badge = document.getElementById('gmailStatusBadge');
   const btnDisconnect = document.getElementById('btnDisconnectGmail');
   const connectCta = document.getElementById('inboxConnectCta');
   const controlsBar = document.getElementById('inboxControlsBar');
   const streamContainer = document.getElementById('inboxStreamContainer');
+  const optStatusText = document.getElementById('googleOptionStatusText');
 
   try{
     const res = await fetch(API_BASE + '/api/gmail/status', {headers: getAuthHeader()});
@@ -2202,6 +2291,7 @@ async function checkAndLoadGmailInbox(force = false){
           badge.className = 'inbox-status-badge';
           badge.innerHTML = `<span>🟢</span><span>Connected: ${escapeHtml(data.gmail_email || 'Gmail Inbox')}</span>`;
         }
+        if(optStatusText) optStatusText.textContent = `🟢 Connected: ${data.gmail_email || 'Gmail Inbox'}`;
         if(btnDisconnect) btnDisconnect.classList.remove('hidden');
         if(connectCta) connectCta.classList.add('hidden');
         if(controlsBar) controlsBar.classList.remove('hidden');
@@ -2213,6 +2303,7 @@ async function checkAndLoadGmailInbox(force = false){
           badge.className = 'inbox-status-badge disconnected';
           badge.innerHTML = `<span>🟡</span><span>Gmail Disconnected</span>`;
         }
+        if(optStatusText) optStatusText.textContent = 'Google OAuth • Click to Connect';
         if(btnDisconnect) btnDisconnect.classList.add('hidden');
         if(connectCta) connectCta.classList.remove('hidden');
         if(controlsBar) controlsBar.classList.add('hidden');
@@ -2305,7 +2396,7 @@ function renderGmailInbox(messages){
     const initials = getInitials(m.sender || 'Mail');
 
     return `
-      <div class="inbox-email-row" onclick="ingestAndAnalyzeGmailMessage('${m.id}')" title="Click to ingest and analyze threat surface for this email">
+      <div class="inbox-email-row" onclick="selectGmailEmailForPreview('${m.id}')" title="Click to view full message & analyze threats">
         <div class="${unreadDotCls}"></div>
         <div class="inbox-avatar">${initials}</div>
         <div class="inbox-main-col">
@@ -2316,10 +2407,93 @@ function renderGmailInbox(messages){
           <div class="inbox-subject-line">${subjectClean}</div>
           <div class="inbox-snippet-preview">${snippetClean}</div>
         </div>
-        <button class="btn-inspect-email" onclick="event.stopPropagation(); ingestAndAnalyzeGmailMessage('${m.id}')">⚡ Inspect Threat Surface →</button>
+        <button class="btn-inspect-email" onclick="event.stopPropagation(); selectGmailEmailForPreview('${m.id}')">⚡ Inspect &amp; Analyze →</button>
       </div>
     `;
   }).join('');
+}
+
+async function selectGmailEmailForPreview(messageId){
+  const card = document.getElementById('gmailSelectedEmailCard');
+  if(!card) return;
+  card.classList.remove('hidden');
+  card.innerHTML = `<div style="text-align:center; padding:30px; color:var(--sub);"><span style="font-size:24px; display:block; margin-bottom:8px;">⏳</span>Loading real Gmail email content, headers, links, and attachments...</div>`;
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  try {
+    const res = await fetch(API_BASE + `/api/gmail/messages/${messageId}`, {headers: getAuthHeader()});
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Failed to fetch message ${messageId}`);
+    }
+    const msg = await res.json();
+    currentSelectedGmailMessage = msg;
+    renderGmailEmailPreview(msg);
+  } catch(e){
+    card.innerHTML = `<div style="padding:20px; color:var(--red);"><b style="display:block; margin-bottom:6px;">⚠️ Could not load message details</b><span>${escapeHtml(e.message)}</span></div>`;
+  }
+}
+
+function renderGmailEmailPreview(msg){
+  const card = document.getElementById('gmailSelectedEmailCard');
+  if(!card || !msg) return;
+
+  const links = msg.links || [];
+  const attachments = msg.attachments || [];
+  const linksHtml = links.length ? links.map(l => `<span class="email-preview-link-chip" title="${escapeHtml(l)}">🔗 ${escapeHtml(l.length > 55 ? l.substring(0, 52) + '...' : l)}</span>`).join('') : '<span style="color:var(--sub2); font-size:12px;">No hyperlinks detected in message body</span>';
+  const attHtml = attachments.length ? attachments.map(a => `<span class="email-preview-att-chip">📎 ${escapeHtml(typeof a === 'string' ? a : (a.filename || a.name || 'attachment'))}</span>`).join('') : '<span style="color:var(--sub2); font-size:12px;">No attachments</span>';
+
+  card.innerHTML = `
+    <div class="row-between" style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <span class="badge" style="background:#1e293b; color:var(--cyan); margin-bottom:6px; display:inline-block;">Real Gmail Message Inspection</span>
+        <h3 style="font-size:18px; margin:4px 0 0; color:var(--text);">${escapeHtml(msg.subject || '(No Subject)')}</h3>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" style="padding:8px 18px; font-size:13px;" onclick="ingestAndAnalyzeGmailMessage('${msg.id}')">⚡ Analyze Email</button>
+        <button class="btn-secondary" style="padding:8px 12px; font-size:12px;" onclick="document.getElementById('gmailSelectedEmailCard').classList.add('hidden')">✕ Close Preview</button>
+      </div>
+    </div>
+
+    <div class="email-preview-meta-grid">
+      <div class="email-preview-meta-item">
+        <label>From / Sender</label>
+        <div class="val">${escapeHtml(msg.sender || 'Unknown')}</div>
+      </div>
+      <div class="email-preview-meta-item">
+        <label>To / Recipient</label>
+        <div class="val">${escapeHtml(msg.recipient || msg.to || 'Me')}</div>
+      </div>
+      <div class="email-preview-meta-item">
+        <label>Date Received</label>
+        <div class="val">${msg.date ? new Date(msg.date).toLocaleString() : 'Recent'}</div>
+      </div>
+      <div class="email-preview-meta-item">
+        <label>Message ID</label>
+        <div class="val" style="font-family:monospace; font-size:11px;">${escapeHtml(msg.id)}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <label style="font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:700; display:block; margin-bottom:6px;">Detected Links (${links.length})</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">${linksHtml}</div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label style="font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:700; display:block; margin-bottom:6px;">Attachments (${attachments.length})</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">${attHtml}</div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <label style="font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:700; display:block; margin-bottom:6px;">Full Email Body</label>
+      <div class="email-preview-body-box">${escapeHtml(msg.body || msg.snippet || '')}</div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+      <button class="btn-primary" style="padding:10px 22px; font-size:14px;" onclick="ingestAndAnalyzeGmailMessage('${msg.id}')">⚡ Analyze Email with MailShield AI</button>
+    </div>
+  `;
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function filterGmailInbox(query){
@@ -2360,6 +2534,8 @@ async function disconnectGmailAccount(){
       showToast('Gmail inbox disconnected.');
       gmailConnected = false;
       gmailInboxMessages = [];
+      const card = document.getElementById('gmailSelectedEmailCard');
+      if(card) card.classList.add('hidden');
       checkAndLoadGmailInbox();
     }
   } catch(e){
@@ -2449,7 +2625,7 @@ async function executeAnalysis(){
       if(hud) hud.classList.add('hidden');
     } finally {
       btn.disabled = false;
-      btn.textContent = '⚡ Analyze Email Threats';
+      btn.textContent = '⚡ Analyze Email';
     }
     return;
   }
@@ -2458,14 +2634,15 @@ async function executeAnalysis(){
   let rawDisplay = '';
 
   if(inspectMode === 'structured'){
+    const sender = (document.getElementById('senderInput')?.value || '').trim();
     const subj = document.getElementById('subjectInput').value.trim();
     const body = document.getElementById('bodyInput').value.trim();
-    if(!subj && !body){
-      errEl.textContent = 'Please enter an Email Subject or Body to analyze.';
+    if(!subj && !body && !sender){
+      errEl.textContent = 'Please enter an Email Subject, Body, or Sender to analyze.';
       return;
     }
-    payload = {subject: subj, body: body};
-    rawDisplay = `Subject: ${subj}\n\n${body}`;
+    payload = {sender: sender, subject: subj, body: body};
+    rawDisplay = (sender ? `From: ${sender}\n` : '') + (subj ? `Subject: ${subj}\n\n` : '\n') + body;
   } else {
     const raw = document.getElementById('emailInput').value.trim();
     if(!raw){
@@ -2506,7 +2683,7 @@ async function executeAnalysis(){
     if(hud) hud.classList.add('hidden');
   } finally {
     btn.disabled = false;
-    btn.textContent = '⚡ Analyze Email Threats';
+    btn.textContent = '⚡ Analyze Email';
   }
 }
 
