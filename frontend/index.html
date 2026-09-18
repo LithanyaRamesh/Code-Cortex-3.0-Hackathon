@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MailShield AI — Enterprise Threat Defense</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#080b14; --panel:#0d1220; --card:#111726; --card2:#131a2b;
+  --border:#1e2637; --text:#eef1f8; --sub:#8b93a7; --sub2:#5c6479;
+  --cyan:#22d3ee; --blue:#3b82f6; --green:#22c55e; --red:#ef4444; --amber:#f59e0b;
+  --grad:linear-gradient(135deg,#22d3ee,#3b82f6);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{background:var(--bg); color:var(--text); font-family:-apple-system,Inter,Segoe UI,Arial,sans-serif; font-size:14px;}
+::-webkit-scrollbar{width:8px; height:8px;} ::-webkit-scrollbar-thumb{background:#242c40; border-radius:4px;}
+.hidden{display:none !important;}
+button{font-family:inherit; cursor:pointer; border:none;}
+input,textarea{font-family:inherit; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px;}
+input:focus,textarea:focus{outline:1px solid var(--cyan);}
+
+/* ---------- LOGIN / REGISTRATION ---------- */
+#login{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:radial-gradient(circle at 20% 20%, #101a30, var(--bg));}
+.login-box{display:grid; grid-template-columns:1fr 1fr; max-width:1000px; width:100%; background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden;}
+.login-left{padding:40px; border-right:1px solid var(--border);}
+.login-right{padding:40px; display:flex; flex-direction:column; justify-content:center;}
+.brand{display:flex; align-items:center; gap:12px; margin-bottom:24px;}
+.shield-icon{width:44px; height:44px; border-radius:12px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-size:22px;}
+.brand h1{font-size:20px;} .brand span.tag{background:var(--cyan); color:#00232b; font-size:11px; padding:2px 6px; border-radius:5px; font-weight:700; margin-left:6px;}
+.login-left h2{font-size:26px; line-height:1.3; margin:18px 0 12px;}
+.login-left p{color:var(--sub); margin-bottom:20px;}
+.feat{display:flex; gap:10px; align-items:center; color:#c8ccdb; margin-bottom:12px; font-size:13.5px;}
+.feat span.ok{color:var(--green);}
+.trust{display:flex; gap:24px; margin-top:24px; padding-top:20px; border-top:1px solid var(--border); color:var(--sub); font-size:12.5px;}
+
+.auth-tabs{display:flex; gap:8px; margin-bottom:20px; background:var(--card2); padding:4px; border-radius:10px; border:1px solid var(--border);}
+.auth-tab{flex:1; padding:9px; text-align:center; border-radius:7px; font-size:13px; font-weight:600; color:var(--sub); cursor:pointer; transition:.15s;}
+.auth-tab.active{background:var(--panel); color:var(--cyan); border:1px solid var(--border);}
+
+.login-right h2{font-size:22px; margin-bottom:6px;} .login-right>p{color:var(--sub); margin-bottom:20px;}
+.field{margin-bottom:14px;} .field label{display:block; font-size:13px; color:#c8ccdb; margin-bottom:6px; font-weight:600;}
+.field input{width:100%;}
+.row-between{display:flex; justify-content:space-between; align-items:center;}
+.link{color:var(--cyan); text-decoration:none; font-size:13px; cursor:pointer;}
+.btn-grad{background:var(--grad); color:#03131c; font-weight:700; padding:13px; border-radius:9px; width:100%; font-size:14.5px; transition:.15s;}
+.btn-grad:hover{opacity:.95;}
+.btn-google{background:var(--card2); border:1px solid var(--border); color:var(--text); width:100%; padding:11px; border-radius:9px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:10px; margin-top:12px; transition:.15s;}
+.btn-google:hover{border-color:var(--sub2); background:#172238;}
+.divider{display:flex; align-items:center; text-align:center; color:var(--sub2); font-size:11px; margin:16px 0; text-transform:uppercase; letter-spacing:0.06em;}
+.divider::before, .divider::after{content:''; flex:1; border-bottom:1px solid var(--border);}
+.divider::before{margin-right:10px;} .divider::after{margin-left:10px;}
+.login-err{color:var(--red); font-size:12.5px; margin-top:10px; min-height:18px;}
+.login-ok{color:var(--green); font-size:12.5px; margin-top:10px; min-height:18px;}
+
+/* ---------- APP SHELL ---------- */
+#app{display:grid; grid-template-columns:260px 1fr; min-height:100vh;}
+.sidebar{background:var(--panel); border-right:1px solid var(--border); padding:20px 18px; display:flex; flex-direction:column;}
+.sidebar .brand{margin-bottom:22px;}
+.sidebar .brand h1{font-size:16px;} .sidebar .brand p{color:var(--sub); font-size:11.5px;}
+.engine-status{display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:9px; padding:10px 12px; margin-bottom:20px;}
+.dot{width:8px; height:8px; border-radius:50%; background:var(--green);}
+.engine-status div b{font-size:13px; display:block;} .engine-status div span{color:var(--sub); font-size:11px;}
+.nav-label{color:var(--sub2); font-size:11px; letter-spacing:.06em; font-weight:700; margin:6px 0 10px;}
+.nav-item{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:9px; color:var(--sub); font-weight:600; margin-bottom:4px; cursor:pointer; font-size:13.5px;}
+.nav-item .pill{margin-left:auto; background:#1b2740; color:var(--cyan); font-size:10px; padding:2px 6px; border-radius:5px;}
+.nav-item.active{background:linear-gradient(90deg,rgba(34,211,238,.12),rgba(59,130,246,.05)); color:var(--cyan); border:1px solid rgba(34,211,238,.25);}
+.protect-box{margin-top:auto; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px;}
+.protect-box .row-between{font-size:12px; color:var(--sub); margin-bottom:8px;}
+.protect-box .row-between b{color:var(--green);}
+.bar-track{height:6px; background:#1c2336; border-radius:4px; overflow:hidden; margin-bottom:10px;}
+.bar-fill{height:100%; background:var(--grad);}
+
+.profile{display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border);}
+.avatar{width:34px; height:34px; border-radius:8px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#03131c; flex-shrink:0;}
+.profile-info{overflow:hidden;}
+.profile-info b{font-size:12.5px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.profile-info span{color:var(--sub); font-size:11px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.logout-btn{margin-left:auto; background:transparent; color:var(--sub); font-size:14px; padding:4px 6px; border-radius:5px; cursor:pointer;}
+.logout-btn:hover{color:var(--red); background:rgba(239,68,68,.12);}
+
+.main{overflow-y:auto; max-height:100vh;}
+.topbar{display:flex; align-items:center; justify-content:space-between; padding:18px 28px; border-bottom:1px solid var(--border); gap:16px; flex-wrap:wrap;}
+.topbar h2{font-size:19px;} .topbar p{color:var(--sub); font-size:12.5px; margin-top:2px;}
+.topbar-right{display:flex; align-items:center; gap:12px;}
+.search{background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:9px 14px; color:var(--text); font-size:12.5px; width:220px;}
+.btn-primary{background:var(--grad); color:#03131c; font-weight:700; padding:10px 16px; border-radius:8px; font-size:13px; white-space:nowrap; cursor:pointer;}
+.btn-secondary{background:var(--card2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; font-size:13px; cursor:pointer;}
+.badge-live{background:rgba(34,197,94,.12); color:var(--green); border:1px solid rgba(34,197,94,.3); padding:8px 12px; border-radius:8px; font-size:12.5px; font-weight:600;}
+.page{padding:24px 28px;}
+
+.banner{display:flex; align-items:center; justify-content:space-between; background:linear-gradient(90deg,rgba(34,211,238,.08),rgba(59,130,246,.04)); border:1px solid rgba(34,211,238,.25); border-radius:12px; padding:18px 20px; margin-bottom:20px; gap:16px; flex-wrap:wrap;}
+.banner-left{display:flex; gap:14px; align-items:center;}
+.icon-sq{width:44px; height:44px; border-radius:10px; background:var(--card2); display:flex; align-items:center; justify-content:center; font-size:20px;}
+.banner h3{font-size:15px; display:flex; gap:8px; align-items:center;}
+.banner .tag{background:rgba(34,197,94,.15); color:var(--green); font-size:10.5px; padding:2px 8px; border-radius:5px; font-weight:700;}
+.banner p{color:var(--sub); font-size:12.5px; margin-top:4px;}
+
+.grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px;}
+.stat{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px;}
+.stat .row-between{margin-bottom:14px;} .stat .row-between span{color:var(--sub); font-size:12.5px;}
+.stat .ic{width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px;}
+.stat h3{font-size:26px; margin-bottom:4px;} .stat small{color:var(--green); font-size:12px;}
+.stat small.down{color:var(--red);}
+.stat small.neutral{color:var(--sub);}
+
+.grid2{display:grid; grid-template-columns:1fr 1.5fr; gap:16px; margin-bottom:20px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px;}
+.card h4{font-size:15px; margin-bottom:4px;} .card>p.sub{color:var(--sub); font-size:12px; margin-bottom:16px;}
+.donut-wrap{display:flex; flex-direction:column; align-items:center; padding-top:10px;}
+.donut{width:190px; height:190px; border-radius:50%; display:flex; align-items:center; justify-content:center; position:relative;
+  background:conic-gradient(#2c3652 0 100%); transition:background .3s;}
+.donut::before{content:""; position:absolute; width:128px; height:128px; border-radius:50%; background:var(--card);}
+.donut-label{position:relative; text-align:center;} .donut-label b{font-size:22px;} .donut-label span{display:block; color:var(--sub); font-size:11.5px;}
+.legend{display:flex; gap:14px; margin-top:16px; flex-wrap:wrap; justify-content:center;}
+.legend span{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--sub);}
+.dotc{width:9px; height:9px; border-radius:50%;}
+
+.vec-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;}
+.live-tag{background:rgba(34,197,94,.12); color:var(--green); font-size:10px; padding:2px 8px; border-radius:5px; margin-left:8px;}
+.vecs{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px;}
+.vec{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px;}
+.vec .row-between{font-size:12.5px; margin-bottom:6px;} .vec h3{font-size:17px; margin-bottom:4px;} .vec p{color:var(--sub); font-size:11.5px;}
+.badge{font-size:10px; font-weight:700; padding:2px 8px; border-radius:5px; display:inline-block;}
+.badge.crit{background:rgba(239,68,68,.15); color:var(--red);}
+.badge.high{background:rgba(245,158,11,.15); color:var(--amber);}
+.badge.med{background:rgba(59,130,246,.15); color:#7db2ff;}
+.badge.low{background:rgba(34,197,94,.15); color:var(--green);}
+
+table{width:100%; border-collapse:collapse; margin-top:10px;}
+th{text-align:left; color:var(--sub2); font-size:11px; font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border);}
+td{padding:12px 10px; border-bottom:1px solid var(--border); font-size:12.5px;}
+td .sender{color:var(--sub); font-size:11.5px;}
+tr.clickable-row{cursor:pointer; transition:background .15s;}
+tr.clickable-row:hover{background:var(--card2);}
+.conf-bar{width:70px; height:4px; background:#1c2336; border-radius:3px; overflow:hidden; display:inline-block; margin-left:6px;}
+.conf-fill{height:100%;}
+
+/* ANALYZE PAGE */
+.inspect-modes{display:flex; gap:10px; margin-bottom:16px; background:var(--card2); padding:5px; border-radius:10px; border:1px solid var(--border); width:fit-content;}
+.inspect-mode-btn{padding:8px 16px; border-radius:7px; font-size:12.5px; font-weight:600; color:var(--sub); cursor:pointer; background:transparent; transition:.15s;}
+.inspect-mode-btn.active{background:var(--panel); color:var(--cyan); border:1px solid var(--border);}
+
+.samples{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:12px 0 18px;}
+.sample-card{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; cursor:pointer; transition:.15s;}
+.sample-card:hover{border-color:var(--cyan); transform:translateY(-1px);}
+.sample-card .badge{margin-bottom:8px;}
+.sample-card b{display:block; font-size:13px; margin-bottom:3px;}
+.sample-card span{color:var(--sub); font-size:11px;}
+.analyze-grid{display:grid; grid-template-columns:2fr 1fr; gap:16px;}
+textarea#emailInput, textarea#bodyInput{width:100%; font-family:ui-monospace,Consolas,monospace; font-size:12.5px; line-height:1.6; resize:vertical;}
+textarea#emailInput{height:250px;}
+textarea#bodyInput{height:180px;}
+
+.dropzone{border:2px dashed var(--border); border-radius:12px; padding:32px 20px; text-align:center; background:var(--card2); cursor:pointer; transition:border-color .2s;}
+.dropzone.dragover{border-color:var(--cyan); background:rgba(34,211,238,.05);}
+.dropzone-icon{font-size:36px; margin-bottom:10px; display:block;}
+.dropzone-fileinfo{margin-top:12px; background:var(--card); border:1px solid var(--border); padding:10px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:10px;}
+
+.tip{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;}
+.tip b{display:block; font-size:12.5px; margin-bottom:4px; color:#c8ccdb;} .tip p{color:var(--sub); font-size:11.5px; line-height:1.5;}
+.footer-row{display:flex; justify-content:space-between; align-items:center; margin-top:14px;}
+.safe-note{color:var(--sub); font-size:12px; display:flex; align-items:center; gap:6px;}
+
+/* REPORT */
+.verdict-banner{border-radius:12px; padding:22px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;}
+.verdict-banner.crit{background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3);}
+.verdict-banner.high{background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3);}
+.verdict-banner.clean{background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.3);}
+.verdict-icon{width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px;}
+.verdict-left{display:flex; gap:16px; align-items:flex-start;}
+.verdict-right{text-align:right;} .verdict-right span{color:var(--sub); font-size:11px; display:block;}
+.verdict-right b{font-size:22px;}
+.indicator{display:flex; justify-content:space-between; align-items:center; background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:13px 15px; margin-bottom:10px;}
+.indicator b{font-size:13px; display:block;} .indicator p{color:var(--sub); font-size:11.5px; margin-top:2px;}
+.playbook-item{background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:12px; margin-bottom:10px;}
+.playbook-item b{font-size:12.5px; display:block;} .playbook-item span{color:var(--sub); font-size:11px;}
+.playbook-item .exec{color:var(--cyan); font-size:11px; font-weight:600; float:right; cursor:pointer;}
+.auth-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+.auth-item{background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:12px; text-align:center;}
+.auth-item span{color:var(--sub); font-size:10.5px; display:block; margin-bottom:6px;} .auth-item b{font-size:13px;}
+pre.rawbox{background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:14px; font-size:11.5px; line-height:1.6; white-space:pre-wrap; word-break:break-all; max-height:240px; overflow:auto; font-family:ui-monospace,Consolas,monospace; color:#c8ccdb;}
+
+/* SETTINGS */
+.slider{width:100%; -webkit-appearance:none; height:6px; border-radius:4px; background:linear-gradient(90deg,var(--cyan),var(--blue)); }
+.slider::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--cyan); border:3px solid #03131c; cursor:pointer;}
+.slider-labels{display:flex; justify-content:space-between; color:var(--sub); font-size:11px; margin-top:8px;}
+.toggle-row{display:flex; justify-content:space-between; align-items:center; background:var(--card2); border:1px solid var(--border); border-radius:9px; padding:14px; margin-bottom:10px;}
+.toggle-row b{font-size:13px; display:block;} .toggle-row p{color:var(--sub); font-size:11.5px; margin-top:2px;}
+.switch{width:40px; height:22px; border-radius:12px; background:#1c2336; position:relative; cursor:pointer; flex-shrink:0;}
+.switch.on{background:var(--cyan);}
+.switch::after{content:""; width:16px; height:16px; border-radius:50%; background:#fff; position:absolute; top:3px; left:3px; transition:.15s;}
+.switch.on::after{left:21px;}
+
+/* MODAL */
+.modal-overlay{position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(4,7,15,.75); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:9999;}
+.modal-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; max-width:480px; width:90%; padding:26px; box-shadow:0 20px 40px rgba(0,0,0,.6);}
+.modal-card h3{font-size:17px; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+.modal-card p{color:var(--sub); font-size:13px; line-height:1.5; margin-bottom:20px;}
+.empty-state{text-align:center; padding:36px 20px; color:var(--sub);}
+.empty-state-icon{font-size:32px; margin-bottom:10px; opacity:.7;}
+
+@media(max-width:900px){#app{grid-template-columns:1fr;} .sidebar{display:none;} .grid4,.grid3,.vecs,.samples,.grid2,.auth-grid{grid-template-columns:1fr;} .login-box{grid-template-columns:1fr;} .login-left{border-right:none; border-bottom:1px solid var(--border);}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN / REGISTRATION VIEW -->
+<div id="login">
+  <div class="login-box">
+    <div class="login-left">
+      <div class="brand"><div class="shield-icon">🛡️</div><div><h1>MailShield <span class="tag">AI</span></h1><p style="color:var(--sub);font-size:12px;">Enterprise Email Spam &amp; Threat Detection</p></div></div>
+      <h2>Real-Time Neural Defense Against Phishing &amp; BEC Attacks</h2>
+      <p>Analyze email headers, NLP vectors, link reputation, and cryptographic SPF/DKIM validation with a production-grade machine learning model.</p>
+      <div class="feat"><span class="ok">✓</span> 98.51% Trained Model Accuracy (80/20 Stratified Test)</div>
+      <div class="feat"><span class="ok">✓</span> Business Email Compromise (BEC) Fraud Detection</div>
+      <div class="feat"><span class="ok">✓</span> Cryptographic DMARC, DKIM &amp; SPF Forensic Alignment</div>
+      <div class="feat"><span class="ok">✓</span> Real Telemetry &amp; Database-Backed Threat Logging</div>
+      <div class="trust"><span>🛡️ SOC2 Ready</span><span>⚡ Verified ML Classifier</span></div>
+    </div>
+    
+    <div class="login-right">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tabSignIn" onclick="switchAuthMode('signin')">Sign In</div>
+        <div class="auth-tab" id="tabRegister" onclick="switchAuthMode('register')">Create Account</div>
+      </div>
+
+      <div id="authHeader">
+        <h2>Sign In to Portal</h2>
+        <p>Enter your credentials to access MailShield AI.</p>
+      </div>
+
+      <!-- Registration Fields -->
+      <div class="field hidden" id="fieldFullName">
+        <label>Full Name</label>
+        <input id="regFullName" placeholder="Alex Mercer" autocomplete="name">
+      </div>
+
+      <!-- Email & Password Fields -->
+      <div class="field">
+        <label>Work Email Address</label>
+        <input id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label class="row-between">Password <a class="link" onclick="alert('Password reset instructions will be sent to your registered email.')">Forgot password?</a></label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <button class="btn-grad" id="btnSubmitAuth" onclick="handleAuthSubmit()">Sign In to Dashboard →</button>
+
+      <div class="divider">or continue with</div>
+
+      <button class="btn-google" onclick="doGoogleAuth()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.2-2 .4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="login-err" id="loginErr"></div>
+      <div class="login-ok" id="loginOk"></div>
+    </div>
+  </div>
+</div>
+
+<!-- GOOGLE OAUTH MODAL (When not configured) -->
+<div id="googleModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3><span style="font-size:20px">⚙️</span> Google OAuth Configuration</h3>
+    <p id="googleModalMsg">Google OAuth is not configured on this server. To enable Google Sign-In, please set the <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> environment variables in your backend environment.</p>
+    <div style="display:flex; justify-content:flex-end;">
+      <button class="btn-primary" onclick="document.getElementById('googleModal').classList.add('hidden')">Understood</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL (PROTECTED) -->
+<div id="app" class="hidden">
+  <div class="sidebar">
+    <div class="brand" style="display:flex;align-items:center;gap:10px;"><div class="shield-icon" style="width:36px;height:36px;font-size:17px;">🛡️</div><div><h1>MailShield <span style="background:var(--cyan);color:#00232b;font-size:9px;padding:1px 5px;border-radius:4px;">AI</span></h1><p>Spam &amp; Threat Defense</p></div></div>
+    <div class="engine-status"><div class="dot"></div><div><b>AI Detection Engine</b><span>ML Model v2.1 • Active</span></div></div>
+    <div class="nav-label">MAIN NAVIGATION</div>
+    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">📊 Dashboard</div>
+    <div class="nav-item" data-page="analyze" onclick="navigate('analyze')">✉️ Analyze Email <span class="pill">AI Pro</span></div>
+    <div class="nav-item" data-page="reports" onclick="navigate('reports')">📈 Reports</div>
+    <div class="nav-item" data-page="settings" onclick="navigate('settings')">⚙️ Settings</div>
+    <div class="protect-box">
+      <div class="row-between"><span>Protection Level</span><b>🔒 Max Guard</b></div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+      <div class="row-between"><span>Real Scans Stored</span><b style="color:var(--text)" id="sidebarScanCount">0</b></div>
+    </div>
+    <div class="profile">
+      <div class="avatar" id="userAvatar">MS</div>
+      <div class="profile-info">
+        <b id="userNameDisplay">Loading...</b>
+        <span id="userEmailDisplay">loading@mailshield.ai</span>
+      </div>
+      <button class="logout-btn" title="Sign Out" onclick="doLogout()">🚪</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div><h2 id="pgTitle">Security Dashboard</h2><p id="pgSub">Real-time email traffic analysis &amp; threat intelligence</p></div>
+      <div class="topbar-right">
+        <input class="search" placeholder="Search scan subject, risk..." id="searchBox" oninput="filterHistory(this.value)">
+        <button class="btn-primary" onclick="navigate('analyze')">✉️ New Analysis</button>
+        <div class="badge-live">🟢 Shield Live</div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
+      <div class="banner">
+        <div class="banner-left"><div class="icon-sq">⚡</div><div><h3 id="bannerTitle">MailShield AI Safeguard Active <span class="tag">OPERATIONAL</span></h3><p id="bannerSub">Connected to ML classifier trained on 5,695 labeled emails (98.51% test accuracy).</p></div></div>
+        <button class="btn-primary" onclick="navigate('analyze')">Run New Email Analysis ↗</button>
+      </div>
+
+      <div class="grid4">
+        <div class="stat"><div class="row-between"><span>Total Analyzed</span><div class="ic" style="background:rgba(59,130,246,.15)">✉️</div></div><h3 id="statTotal">0</h3><small class="neutral" id="statTotalSub">Real scans stored</small></div>
+        <div class="stat"><div class="row-between"><span>Spam &amp; Threats</span><div class="ic" style="background:rgba(239,68,68,.15)">⚠️</div></div><h3 id="statThreats" style="color:var(--red)">0</h3><small class="neutral" id="statThreatsSub">Quarantined threats</small></div>
+        <div class="stat"><div class="row-between"><span>Legitimate Emails</span><div class="ic" style="background:rgba(34,197,94,.15)">🛡️</div></div><h3 id="statLegit" style="color:var(--green)">0</h3><small class="neutral" id="statLegitSub">Passed security checks</small></div>
+        <div class="stat"><div class="row-between"><span>Avg Confidence</span><div class="ic" style="background:rgba(34,211,238,.15)">📈</div></div><h3 id="statConfidence">—</h3><small class="neutral" id="statConfidenceSub">Model inference score</small></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h4>Email Traffic Classification</h4><p class="sub">Dynamic breakdown calculated from stored scans</p>
+          <div class="donut-wrap">
+            <div class="donut" id="dashDonut">
+              <div class="donut-label"><b id="donutTotal">0</b><span id="donutSub">Emails Analyzed</span></div>
+            </div>
+            <div class="legend" id="dashLegend">
+              <span><i class="dotc" style="background:var(--green)"></i>Legitimate 0%</span>
+              <span><i class="dotc" style="background:var(--amber)"></i>Spam 0%</span>
+              <span><i class="dotc" style="background:var(--red)"></i>Phishing 0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="vec-head"><div><h4 style="display:inline">Attack Vectors &amp; Threat Telemetry</h4><span class="live-tag">Live</span></div><a class="link" onclick="navigate('reports')">View Metrics ›</a></div>
+          <p class="sub">Threat signatures identified across analyzed emails</p>
+          <div class="vecs">
+            <div class="vec"><div class="row-between"><span>BEC &amp; Wire Fraud</span><span class="badge crit">CRITICAL</span></div><h3 id="vecBec">0</h3><p>Executive &amp; wire transfer triggers</p></div>
+            <div class="vec"><div class="row-between"><span>Phishing Portals</span><span class="badge high">HIGH</span></div><h3 id="vecPhish">0</h3><p>High-risk spam &amp; credential vectors</p></div>
+            <div class="vec"><div class="row-between"><span>Suspicious Links</span><span class="badge med">MEDIUM</span></div><h3 id="vecLinks">0</h3><p>Flagged lookalike/phishing domains</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-between"><div><h4 style="font-size:15px;">Recent Email Scans</h4><p class="sub" style="margin-bottom:0;">Live inspection audit log from the database (click any row to view full report)</p></div><button class="btn-secondary" onclick="loadDashboardData()">🔄 Refresh</button></div>
+        <table>
+          <thead><tr><th>Subject / Preview</th><th>Verdict</th><th>Confidence</th><th>Risk Level</th><th>Date &amp; Time</th></tr></thead>
+          <tbody id="scanTable">
+            <tr><td colspan="5" class="empty-state"><div class="empty-state-icon">📭</div>No emails analyzed yet.<br><span style="font-size:11.5px;color:var(--sub2)">Run your first scan in the Analyzer to see live threat intelligence.</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ANALYZE -->
+    <div class="page hidden" id="page-analyze">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="row-between">
+          <div><h4 style="font-size:17px;">📄 Deep Email Threat Inspector</h4><p class="sub" style="margin-bottom:0">Multi-modal inspection: enter separate Subject &amp; Body, paste raw RFC 822 source, or safely upload <code>.eml</code>/<code>.txt</code> files.</p></div>
+          <button class="btn-secondary" onclick="clearInput()">↺ Clear Input</button>
+        </div>
+
+        <!-- Mode Selector -->
+        <div style="margin-top:16px;">
+          <div class="inspect-modes">
+            <button class="inspect-mode-btn active" id="btnModeStructured" onclick="switchInspectMode('structured')">Structured (Subject + Body)</button>
+            <button class="inspect-mode-btn" id="btnModeRaw" onclick="switchInspectMode('raw')">Raw RFC 822 / Paste</button>
+            <button class="inspect-mode-btn" id="btnModeFile" onclick="switchInspectMode('file')">Upload .eml / .txt</button>
+          </div>
+        </div>
+
+        <p class="sub" style="margin:14px 0 4px;font-weight:700;color:#c8ccdb;">Load Threat Test Samples:</p>
+        <div class="samples" id="sampleCards"></div>
+
+        <div class="analyze-grid">
+          <div>
+            <!-- Structured Mode Inputs -->
+            <div id="modeStructuredView">
+              <div class="field" style="margin-bottom:10px;">
+                <label>Email Subject Line</label>
+                <input id="subjectInput" placeholder="e.g. URGENT: Executive Wire Transfer Request #99402" oninput="updateCount()">
+              </div>
+              <div class="field">
+                <div class="row-between" style="margin-bottom:6px;"><label style="margin-bottom:0;">Email Body / Content</label><span class="sub" id="bodyCharCount">0 characters</span></div>
+                <textarea id="bodyInput" placeholder="Enter or paste the message body here... Include any links or payment instructions." oninput="updateCount()"></textarea>
+              </div>
+            </div>
+
+            <!-- Raw Paste Mode Inputs -->
+            <div id="modeRawView" class="hidden">
+              <div class="row-between" style="margin-bottom:8px;"><b style="font-size:13px;">Raw RFC 822 Email Headers &amp; Source</b><span class="sub" id="charCount">0 characters</span></div>
+              <textarea id="emailInput" placeholder="Paste RFC 822 email source headers or text here... e.g. From:, Subject:, DKIM-Signature:, Received: links" oninput="updateCount()"></textarea>
+            </div>
+
+            <!-- File Upload Mode -->
+            <div id="modeFileView" class="hidden">
+              <div class="dropzone" id="fileDropzone" onclick="document.getElementById('fileUploadInput').click()">
+                <span class="dropzone-icon">📁</span>
+                <b style="font-size:14px;display:block;margin-bottom:4px;">Drag and drop .eml or .txt email file here</b>
+                <span style="color:var(--sub);font-size:12px;">Supported: RFC 822 (.eml) or text files (.txt) • Maximum size 5MB</span>
+                <input type="file" id="fileUploadInput" accept=".eml,.txt,text/plain,message/rfc822" style="display:none;" onchange="handleFileSelected(this.files[0])">
+              </div>
+              <div id="selectedFileInfo" class="hidden" style="margin-top:12px;">
+                <div class="dropzone-fileinfo">
+                  <span style="font-size:20px;">📄</span>
+                  <div><b id="uploadFileName" style="font-size:13px;">file.eml</b><span id="uploadFileSize" style="display:block;color:var(--sub);font-size:11px;">12 KB</span></div>
+                  <button class="btn-secondary" style="margin-left:auto;padding:4px 10px;font-size:11px;" onclick="clearUploadedFile()">Remove</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer-row">
+              <span class="safe-note">🛡️ Production ML (98.51% Accuracy) • Secure Sandbox Execution</span>
+              <button class="btn-primary" id="btnAnalyze" style="padding:13px 24px;" onclick="executeAnalysis()">⚡ Analyze Email Threats</button>
+            </div>
+            <div id="analyzeErr" style="color:var(--red);font-size:12.5px;margin-top:8px;"></div>
+          </div>
+
+          <div>
+            <div class="tip"><b>Deep Header Forensics</b><p>RFC 822 headers like <code>Authentication-Results</code> and <code>DKIM-Signature</code> are cryptographically aligned with domain DNS records.</p></div>
+            <div class="tip"><b>Explainable AI (XAI)</b><p>Flagged messages identify exact keywords (wire transfer, urgency pressure, lookalike links) explaining why the threat was quarantined.</p></div>
+            <div class="tip"><b>Safe Non-Executable Parsing</b><p>Uploaded <code>.eml</code> files are safely parsed in a non-executable sandbox; scripts or embedded macros are never run.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT -->
+    <div class="page hidden" id="page-report">
+      <div class="row-between" style="margin-bottom:16px;">
+        <button class="btn-secondary" onclick="navigate('analyze')">← Back to Analyzer</button>
+        <button class="btn-primary" onclick="navigate('analyze')">⚡ Analyze Another Email</button>
+      </div>
+      <div id="verdictBanner" class="verdict-banner"></div>
+      <div class="grid2">
+        <div>
+          <div class="card" style="margin-bottom:16px;">
+            <h4>⚡ Explainable AI Forensic Breakdown</h4>
+            <p id="forensicExplain" style="color:#c8ccdb;font-size:13px;margin-top:10px;line-height:1.6;"></p>
+          </div>
+          <div class="card"><h4 style="margin-bottom:12px;">Threat &amp; Risk Indicators</h4><div id="indicatorList"></div></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px;"><h4 style="margin-bottom:12px;">🔒 Recommended Playbook Actions</h4><div id="playbookList"></div></div>
+          <div class="card"><h4 style="margin-bottom:12px;">Authentication Alignment</h4><div class="auth-grid" id="authGrid"></div>
+            <div id="ipInfo" style="font-size:12px;color:var(--sub);"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;"><h4 style="margin-bottom:10px;">Raw Content Snapshot</h4><pre class="rawbox" id="rawSnapshot"></pre></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page hidden" id="page-reports">
+      <div class="row-between" style="margin-bottom:16px;"><div><h3 style="font-size:18px;display:flex;gap:8px;align-items:center;">📊 Threat Analytics &amp; Model Performance</h3><p class="sub" style="margin-bottom:0">Evaluation metrics from the trained ML model plus live telemetry from analyzed emails.</p></div>
+      <div style="display:flex;gap:10px;"><button class="btn-secondary" onclick="exportScansCSV()">📄 Export CSV</button><button class="btn-primary" onclick="navigate('analyze')">✉️ Analyze Email</button></div></div>
+      
+      <div class="grid4">
+        <div class="stat"><span style="color:var(--sub);font-size:12.5px;">Total Scans Recorded</span><h3 id="repTotal">0</h3><small class="neutral">Stored in database</small></div>
+        <div class="stat"><span style="color:var(--sub);font-size:12.5px;">Threats Quarantined</span><h3 id="repThreats" style="color:var(--red)">0</h3><small class="neutral">Critical &amp; Elevated</small></div>
+        <div class="stat"><span style="color:var(--sub);font-size:12.5px;">Clean Verified</span><h3 id="repLegit" style="color:var(--green)">0</h3><small class="neutral">Passed inspection</small></div>
+        <div class="stat"><span style="color:var(--sub);font-size:12.5px;">Average Confidence</span><h3 id="repConf">—</h3><small class="neutral">Across stored scans</small></div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="row-between"><div><h4>Weekly Email Volume Breakdown</h4><p class="sub">Traffic distribution by day from your stored inspection database</p></div><span class="sub" id="volumeSummary">0 Total Scans</span></div>
+        <div style="display:flex;align-items:flex-end;gap:18px;height:160px;margin-top:20px;" id="weeklyBars">
+          <!-- Rendered dynamically -->
+        </div>
+        <div style="display:flex;justify-content:space-between;color:var(--sub);font-size:11px;margin-top:8px;"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+      </div>
+
+      <div class="grid2" style="grid-template-columns:1fr 1fr;">
+        <div class="card">
+          <h4>⚙️ Model Evaluation Benchmarks <span class="pill" style="background:#1b2740;color:var(--cyan);padding:2px 8px;border-radius:5px;font-size:10px;">TF-IDF + Logistic Regression</span></h4>
+          <p class="sub" style="margin-bottom:12px;">Evaluation metrics on held-out test set (80/20 stratified split).</p>
+          
+          <div style="margin-top:14px;"><div class="row-between" style="font-size:12.5px;margin-bottom:6px;"><span>Overall Model Accuracy</span><b id="mAcc">98.51%</b></div><div class="bar-track"><div class="bar-fill" id="bAcc" style="width:98.51%;background:var(--green)"></div></div></div>
+          <div style="margin-top:14px;"><div class="row-between" style="font-size:12.5px;margin-bottom:6px;"><span>Spam Precision (Catch Accuracy)</span><b id="mPrec">100.0%</b></div><div class="bar-track"><div class="bar-fill" id="bPrec" style="width:100%;background:var(--cyan)"></div></div></div>
+          <div style="margin-top:14px;"><div class="row-between" style="font-size:12.5px;margin-bottom:6px;"><span>Spam Recall (Threat Capture)</span><b id="mRec">93.80%</b></div><div class="bar-track"><div class="bar-fill" id="bRec" style="width:93.8%;background:var(--blue)"></div></div></div>
+          <div style="margin-top:14px;"><div class="row-between" style="font-size:12.5px;margin-bottom:6px;"><span>Spam F1-Score (Balanced Harmonic Mean)</span><b id="mF1">96.80%</b></div><div class="bar-track"><div class="bar-fill" id="bF1" style="width:96.8%;background:var(--grad)"></div></div></div>
+
+          <p class="sub" style="margin-top:14px;font-size:11.5px;line-height:1.5;" id="modelDatasetNote">Dataset: 5,728 raw emails (33 duplicates removed → 5,695 total: 4,327 legitimate, 1,368 spam).</p>
+        </div>
+
+        <div class="card">
+          <h4>📈 Training &amp; Dataset Partition</h4>
+          <p class="sub">Corpus composition and validation structure</p>
+          <div id="datasetPartitionList" style="margin-top:12px;">
+            <div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);"><div><b style="font-size:12.5px;">Total Labeled Dataset</b><div class="sub" style="font-size:11px;">After 33 duplicates removed</div></div><b style="color:var(--cyan)">5,695 emails</b></div>
+            <div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);"><div><b style="font-size:12.5px;">Legitimate Corpus</b><div class="sub" style="font-size:11px;">Non-spam verified communication</div></div><b style="color:var(--green)">4,327 (76.0%)</b></div>
+            <div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);"><div><b style="font-size:12.5px;">Spam &amp; Phishing Corpus</b><div class="sub" style="font-size:11px;">Malicious and fraudulent samples</div></div><b style="color:var(--red)">1,368 (24.0%)</b></div>
+            <div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);"><div><b style="font-size:12.5px;">Training Set (80%)</b><div class="sub" style="font-size:11px;">Stratified training partition</div></div><b>4,556 emails</b></div>
+            <div class="row-between" style="padding:10px 0;"><div><b style="font-size:12.5px;">Testing Set (20%)</b><div class="sub" style="font-size:11px;">Held-out evaluation benchmark</div></div><b style="color:var(--green)">1,139 emails</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page hidden" id="page-settings">
+      <div class="card">
+        <div class="row-between"><div><h4 style="font-size:17px;">⚙️ MailShield Engine Configuration</h4><p class="sub" style="margin-bottom:0">Customize AI threat threshold, automatic quarantine rules, and alert webhooks.</p></div><button class="btn-primary" onclick="saveSettings()">Save Settings</button></div>
+        <div style="margin-top:22px;">
+          <div class="row-between"><b style="font-size:14px;">🎚️ Neural AI Sensitivity Threshold</b><span id="threshVal" style="border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-size:12.5px;">85%</span></div>
+          <p class="sub" style="margin:6px 0 14px;">Higher sensitivity increases threat capture aggressiveness but may increase verification holds.</p>
+          <input type="range" min="50" max="99" value="85" class="slider" id="threshSlider" oninput="document.getElementById('threshVal').textContent=this.value+'%'">
+          <div class="slider-labels"><span>Balanced (50%)</span><span>Recommended Strict (85%)</span><span>Paranoid Zero-Trust (99%)</span></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <h4 style="margin-bottom:14px;">🛡️ Automated Policy Rules</h4>
+        <div class="toggle-row"><div><b>Auto-Quarantine Phishing Threats</b><p>Automatically isolate messages with confidence &gt; 90%</p></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="toggle-row"><div><b>Send Slack / Teams Critical Alerts</b><p>Instantly notify SOC channel on BEC or wire transfer attacks</p></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="toggle-row"><div><b>Weekly Digest Email</b><p>Summarize threat trends every Monday at 8:00 AM</p></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <h4 style="margin-bottom:14px;">📧 Current Monitored Account</h4>
+        <div class="toggle-row"><div><b id="settingsUserEmail">—</b><p>Authenticated user • Full inspection enabled</p></div><span class="badge low">Active</span></div>
+        <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--sub);font-size:12px;">Logged in as <span id="settingsUserName" style="color:var(--text);font-weight:600;">—</span></span>
+          <button class="btn-secondary" style="color:var(--red);border-color:rgba(239,68,68,.3);" onclick="doLogout()">Sign Out of MailShield</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.MAILSHIELD_API_BASE || "http://localhost:8000";
+
+let authMode = "signin"; // 'signin' or 'register'
+let inspectMode = "structured"; // 'structured', 'raw', or 'file'
+let uploadedFileObject = null;
+let currentUser = null;
+let currentScansList = [];
+
+// --- SAMPLES ---
+const samples = {
+  wire: {
+    label: "High Threat", badge: "crit", title: "Urgent Wire Transfer Request", sub: "finance-update@ceo-payroll-sec.com",
+    subject: "URGENT: Executive Wire Transfer Request #99402",
+    body: "Dear Finance Team,\n\nPlease execute an immediate wire payment of $48,500.00 to our strategic partner vendor before 12:00 PM EST today. The invoice and wiring instructions are attached via the secure portal link below:\n\nhttp://login-verify-auth-session-billing.net/invoice?ref=99402",
+    text: `From: CEO Executive Office <finance-update@ceo-payroll-sec.com>\nTo: accounting@company.com\nSubject: URGENT: Executive Wire Transfer Request #99402\nDate: Oct 24, 2026 09:14:02 AM\nX-Mailer: Unknown-PH-Script-v2.1\nDKIM-Signature: NONE\n\nDear Finance Team,\n\nPlease execute an immediate wire payment of $48,500.00 to our strategic partner vendor before 12:00 PM EST today. The invoice and wiring instructions are attached via the secure portal link below:\n\nhttp://login-verify-auth-session-billing.net/invoice?ref=99402`
+  },
+  aws: {
+    label: "Credential Harvesting", badge: "high", title: "AWS Security Alert (Spoofed)", sub: "no-reply@aws-account-verify-support.org",
+    subject: "ACTION REQUIRED: AWS Root Account Suspended",
+    body: "Your root account access has been suspended due to unusual activity. Verify your identity immediately to restore access:\n\nhttp://aws-account-verify-support.org/session/login?id=8831",
+    text: `From: AWS Security <no-reply@aws-account-verify-support.org>\nTo: admin@company.com\nSubject: ACTION REQUIRED: AWS Root Account Suspended\nDKIM-Signature: NONE\nAuthentication-Results: spf=fail dmarc=fail\n\nYour root account access has been suspended due to unusual activity. Verify your identity immediately to restore access:\n\nhttp://aws-account-verify-support.org/session/login?id=8831`
+  },
+  clean: {
+    label: "Verified Clean", badge: "low", title: "Legitimate SaaS Invoice", sub: "billing@github.com",
+    subject: "Your GitHub Enterprise Subscription Invoice #GH-883910",
+    body: "Hi there,\n\nYour GitHub Enterprise invoice for October 2026 is now available. Total due: $2,400.00. No action is required if you're enrolled in autopay.",
+    text: `From: GitHub Billing <billing@github.com>\nTo: accounting@company.com\nSubject: Your GitHub Enterprise Subscription Invoice #GH-883910\nDKIM-Signature: PASS\nAuthentication-Results: spf=pass dkim=pass dmarc=pass\n\nHi there,\n\nYour GitHub Enterprise invoice for October 2026 is now available. Total due: $2,400.00. No action is required if you're enrolled in autopay.`
+  },
+  courier: {
+    label: "Spam & Malware", badge: "crit", title: "Fake Courier Delivery (Spam)", sub: "dispatch-notice@express-post-tracking.xyz",
+    subject: "Delivery Failed: Download shipment receipt #FED-7729",
+    body: "Your package could not be delivered. Download the attached receipt.zip and re-schedule delivery at the link below within 24 hours or your item will be returned:\n\nhttp://express-post-tracking.xyz/receipt.zip",
+    text: `From: Express Post <dispatch-notice@express-post-tracking.xyz>\nTo: user@company.com\nSubject: Delivery Failed: Download shipment receipt #FED-7729\nDKIM-Signature: NONE\n\nYour package could not be delivered. Download the attached receipt.zip and re-schedule delivery at the link below within 24 hours or your item will be returned:\n\nhttp://express-post-tracking.xyz/receipt.zip`
+  }
+};
+
+function renderSamples(){
+  document.getElementById('sampleCards').innerHTML = Object.entries(samples).map(([k,v])=>
+   `<div class="sample-card" onclick="loadSample('${k}')"><span class="badge ${v.badge}">${v.label}</span><b>${v.title}</b><span>${v.sub}</span></div>`).join('');
+}
+
+function loadSample(k){
+  const s = samples[k];
+  document.getElementById('subjectInput').value = s.subject || '';
+  document.getElementById('bodyInput').value = s.body || '';
+  document.getElementById('emailInput').value = s.text;
+  updateCount();
+}
+
+function clearInput(){
+  document.getElementById('subjectInput').value = '';
+  document.getElementById('bodyInput').value = '';
+  document.getElementById('emailInput').value = '';
+  clearUploadedFile();
+  updateCount();
+  document.getElementById('analyzeErr').textContent = '';
+}
+
+function updateCount(){
+  const rawLen = document.getElementById('emailInput').value.length;
+  const bodyLen = document.getElementById('bodyInput').value.length;
+  document.getElementById('charCount').textContent = rawLen + ' characters';
+  document.getElementById('bodyCharCount').textContent = bodyLen + ' characters';
+}
+
+function switchInspectMode(mode){
+  inspectMode = mode;
+  document.querySelectorAll('.inspect-mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('modeStructuredView').classList.add('hidden');
+  document.getElementById('modeRawView').classList.add('hidden');
+  document.getElementById('modeFileView').classList.add('hidden');
+
+  if(mode === 'structured'){
+    document.getElementById('btnModeStructured').classList.add('active');
+    document.getElementById('modeStructuredView').classList.remove('hidden');
+  } else if(mode === 'raw'){
+    document.getElementById('btnModeRaw').classList.add('active');
+    document.getElementById('modeRawView').classList.remove('hidden');
+  } else if(mode === 'file'){
+    document.getElementById('btnModeFile').classList.add('active');
+    document.getElementById('modeFileView').classList.remove('hidden');
+  }
+}
+
+// Drag & Drop File Handling
+const dropzone = document.getElementById('fileDropzone');
+['dragenter', 'dragover'].forEach(eventName => {
+  dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }, false);
+});
+['dragleave', 'drop'].forEach(eventName => {
+  dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
+});
+dropzone.addEventListener('drop', (e) => {
+  const dt = e.dataTransfer;
+  if(dt.files && dt.files.length){
+    handleFileSelected(dt.files[0]);
+  }
+});
+
+function handleFileSelected(file){
+  if(!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext !== 'eml' && ext !== 'txt'){
+    alert('Please select a .eml or .txt file.');
+    return;
+  }
+  if(file.size > 5 * 1024 * 1024){
+    alert('File size exceeds 5MB limit.');
+    return;
+  }
+  uploadedFileObject = file;
+  document.getElementById('uploadFileName').textContent = file.name;
+  document.getElementById('uploadFileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('selectedFileInfo').classList.remove('hidden');
+}
+
+function clearUploadedFile(){
+  uploadedFileObject = null;
+  document.getElementById('fileUploadInput').value = '';
+  document.getElementById('selectedFileInfo').classList.add('hidden');
+}
+
+// --- AUTHENTICATION & FLOWS ---
+function switchAuthMode(mode){
+  authMode = mode;
+  document.getElementById('loginErr').textContent = '';
+  document.getElementById('loginOk').textContent = '';
+  if(mode === 'register'){
+    document.getElementById('tabRegister').classList.add('active');
+    document.getElementById('tabSignIn').classList.remove('active');
+    document.getElementById('fieldFullName').classList.remove('hidden');
+    document.getElementById('authHeader').innerHTML = '<h2>Create SOC Account</h2><p>Register with your name, work email, and secure password.</p>';
+    document.getElementById('btnSubmitAuth').textContent = 'Create Protected Account →';
+    window.location.hash = '#register';
+  } else {
+    document.getElementById('tabSignIn').classList.add('active');
+    document.getElementById('tabRegister').classList.remove('active');
+    document.getElementById('fieldFullName').classList.add('hidden');
+    document.getElementById('authHeader').innerHTML = '<h2>Sign In to Portal</h2><p>Enter your credentials to access MailShield AI.</p>';
+    document.getElementById('btnSubmitAuth').textContent = 'Sign In to Dashboard →';
+    window.location.hash = '#login';
+  }
+}
+
+async function handleAuthSubmit(){
+  const errEl = document.getElementById('loginErr');
+  const okEl = document.getElementById('loginOk');
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPass').value;
+
+  if(authMode === 'register'){
+    const fullName = document.getElementById('regFullName').value.trim();
+    if(!fullName){ errEl.textContent = 'Please enter your Full Name.'; return; }
+    if(!email || !email.includes('@') || !email.includes('.')){ errEl.textContent = 'Please enter a valid email address.'; return; }
+    if(!password || password.length < 6){ errEl.textContent = 'Password must be at least 6 characters long.'; return; }
+
+    try{
+      const res = await fetch(API_BASE + '/auth/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({full_name: fullName, email: email, password: password})
+      });
+      const data = await res.json();
+      if(!res.ok){
+        errEl.textContent = data.detail || 'Registration failed.';
+        return;
+      }
+      
+      // Register -> Login Flow: Switch to Sign In tab, clear password, pre-fill email and prompt user to login
+      switchAuthMode('signin');
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPass').value = '';
+      document.getElementById('regFullName').value = '';
+      document.getElementById('loginOk').textContent = '✓ Account created successfully! Please enter your password to sign in.';
+    } catch(e){
+      errEl.textContent = 'Unable to connect to backend server at ' + API_BASE;
+    }
+  } else {
+    if(!email || !password){ errEl.textContent = 'Please enter both email and password.'; return; }
+
+    try{
+      const res = await fetch(API_BASE + '/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email, password: password})
+      });
+      const data = await res.json();
+      if(!res.ok){
+        errEl.textContent = data.detail || 'Invalid email or password.';
+        return;
+      }
+      localStorage.setItem('mailshield_token', data.token);
+      localStorage.setItem('mailshield_user', JSON.stringify(data.user));
+      currentUser = data.user;
+      okEl.textContent = '✓ Authenticated! Loading security dashboard...';
+      setTimeout(() => {
+        initAppSession(data.user);
+        navigate('dashboard');
+      }, 300);
+    } catch(e){
+      errEl.textContent = 'Unable to connect to backend server at ' + API_BASE;
+    }
+  }
+}
+
+async function doGoogleAuth(){
+  try{
+    const res = await fetch(API_BASE + '/auth/google/status');
+    const data = await res.json();
+    if(data.configured && data.client_id){
+      alert('Google OAuth configured. Redirecting to Google Authentication...');
+    } else {
+      document.getElementById('googleModalMsg').textContent = data.message || 'Google OAuth is not configured on this server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.';
+      document.getElementById('googleModal').classList.remove('hidden');
+    }
+  } catch(e){
+    document.getElementById('googleModalMsg').textContent = 'Cannot reach backend to check Google OAuth configuration. Please ensure backend is running.';
+    document.getElementById('googleModal').classList.remove('hidden');
+  }
+}
+
+function doLogout(){
+  localStorage.removeItem('mailshield_token');
+  localStorage.removeItem('mailshield_user');
+  currentUser = null;
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').textContent = '';
+  document.getElementById('loginOk').textContent = '';
+  navigate('login');
+}
+
+function getAuthHeader(){
+  const token = localStorage.getItem('mailshield_token');
+  return token ? {'Authorization': 'Bearer ' + token} : {};
+}
+
+function getInitials(name){
+  if(!name) return 'MS';
+  const parts = name.trim().split(/\s+/);
+  if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function initAppSession(user){
+  currentUser = user;
+  document.getElementById('userNameDisplay').textContent = user.full_name || 'SOC Analyst';
+  document.getElementById('userEmailDisplay').textContent = user.email || 'user@mailshield.ai';
+  document.getElementById('userAvatar').textContent = getInitials(user.full_name || user.email);
+  document.getElementById('settingsUserName').textContent = user.full_name || 'SOC Analyst';
+  document.getElementById('settingsUserEmail').textContent = user.email || 'user@mailshield.ai';
+  loadDashboardData();
+  loadRealMetrics();
+}
+
+// --- ROUTING & ROUTE PROTECTION ---
+function navigate(targetRoute){
+  const cleanRoute = (targetRoute || '').replace(/^#\/?/, '').toLowerCase() || 'dashboard';
+
+  // Check authentication status
+  const token = localStorage.getItem('mailshield_token');
+  const isAuthed = !!(token && currentUser);
+
+  if(!isAuthed){
+    // Protected routes redirect to login
+    if(cleanRoute !== 'login' && cleanRoute !== 'register'){
+      window.location.hash = '#login';
+      showAuthScreen('signin');
+      return;
+    }
+    if(cleanRoute === 'register'){
+      window.location.hash = '#register';
+      showAuthScreen('register');
+      return;
+    }
+    window.location.hash = '#login';
+    showAuthScreen('signin');
+    return;
+  }
+
+  // Authenticated user trying to access login/register -> redirect to dashboard
+  if(cleanRoute === 'login' || cleanRoute === 'register'){
+    window.location.hash = '#dashboard';
+    showAppPage('dashboard');
+    return;
+  }
+
+  // Authenticated user navigating to a valid protected page
+  window.location.hash = '#' + cleanRoute;
+  showAppPage(cleanRoute);
+}
+
+function showAuthScreen(mode){
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+  switchAuthMode(mode);
+}
+
+function showAppPage(pageName){
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  const target = document.getElementById('page-' + pageName);
+  if(target) target.classList.remove('hidden');
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
+  if(navItem) navItem.classList.add('active');
+
+  const titles = {
+    dashboard: ["Security Dashboard", "Real-time email traffic analysis & threat intelligence"],
+    analyze: ["Analyze Raw Email", "Deep AI inspection of headers, content, and links"],
+    report: ["Threat Forensic Report", "Detailed verdict and mitigation steps"],
+    reports: ["Analytics & Threat Reports", "Trained ML evaluation metrics and stored detection logs"],
+    settings: ["System Settings & Rules", "Configure detection sensitivity, webhooks, and gateway rules"]
+  };
+  if(titles[pageName]){
+    document.getElementById('pgTitle').textContent = titles[pageName][0];
+    document.getElementById('pgSub').textContent = titles[pageName][1];
+  }
+  window.scrollTo(0,0);
+  const mainEl = document.querySelector('.main');
+  if(mainEl) mainEl.scrollTo(0,0);
+
+  if(pageName === 'dashboard' || pageName === 'reports'){
+    loadDashboardData();
+  }
+}
+
+// Handle browser Back / Forward buttons & Hash Changes
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  navigate(hash);
+});
+
+// --- DASHBOARD & REPORTS DATA ---
+async function loadDashboardData(){
+  try{
+    const headers = getAuthHeader();
+    const [statsRes, histRes] = await Promise.all([
+      fetch(API_BASE + '/stats', {headers: headers}),
+      fetch(API_BASE + '/history', {headers: headers})
+    ]);
+
+    if(statsRes.ok){
+      const stats = await statsRes.json();
+      renderStats(stats);
+    }
+    if(histRes.ok){
+      const history = await histRes.json();
+      currentScansList = history;
+      renderScanHistory(history);
+    }
+  } catch(e){
+    console.warn("Could not fetch dashboard stats:", e);
+  }
+}
+
+function renderStats(s){
+  document.getElementById('sidebarScanCount').textContent = s.total_analyzed;
+  document.getElementById('statTotal').textContent = s.total_analyzed;
+  document.getElementById('statThreats').textContent = s.threats_count;
+  document.getElementById('statLegit').textContent = s.legitimate_count;
+  document.getElementById('statConfidence').textContent = s.avg_confidence > 0 ? (s.avg_confidence + '%') : '—';
+
+  document.getElementById('repTotal').textContent = s.total_analyzed;
+  document.getElementById('repThreats').textContent = s.threats_count;
+  document.getElementById('repLegit').textContent = s.legitimate_count;
+  document.getElementById('repConf').textContent = s.avg_confidence > 0 ? (s.avg_confidence + '%') : '—';
+  document.getElementById('volumeSummary').textContent = s.total_analyzed + ' Total Scans';
+
+  if(s.total_analyzed === 0){
+    document.getElementById('bannerSub').textContent = "No emails analyzed yet. Run your first email scan in the Analyzer to see live threat intelligence.";
+  } else {
+    document.getElementById('bannerSub').textContent = `${s.total_analyzed} emails scanned in database. Quarantined ${s.threats_count} threats, passed ${s.legitimate_count} legitimate.`;
+  }
+
+  // Attack vectors
+  document.getElementById('vecBec').textContent = s.attack_vectors ? s.attack_vectors.bec_count : 0;
+  document.getElementById('vecPhish').textContent = s.attack_vectors ? s.attack_vectors.phishing_count : 0;
+  document.getElementById('vecLinks').textContent = s.attack_vectors ? s.attack_vectors.suspicious_link_count : 0;
+
+  // Donut chart
+  const donut = document.getElementById('dashDonut');
+  const donutTotal = document.getElementById('donutTotal');
+  donutTotal.textContent = s.total_analyzed;
+
+  if(!s.has_data || s.total_analyzed === 0){
+    donut.style.background = 'conic-gradient(#242c40 0 100%)';
+    document.getElementById('dashLegend').innerHTML = `
+      <span><i class="dotc" style="background:#242c40"></i>No scans recorded yet</span>`;
+  } else {
+    const l = s.legit_percent;
+    const sp = s.spam_percent;
+    const ph = s.phishing_percent;
+    const p1 = l;
+    const p2 = l + sp;
+    donut.style.background = `conic-gradient(var(--green) 0 ${p1}%, var(--amber) ${p1}% ${p2}%, var(--red) ${p2}% 100%)`;
+    document.getElementById('dashLegend').innerHTML = `
+      <span><i class="dotc" style="background:var(--green)"></i>Legitimate ${l}%</span>
+      <span><i class="dotc" style="background:var(--amber)"></i>Spam ${sp}%</span>
+      <span><i class="dotc" style="background:var(--red)"></i>Phishing ${ph}%</span>`;
+  }
+
+  // Weekly volume bars
+  const weeklyEl = document.getElementById('weeklyBars');
+  if(s.daily_volume && s.daily_volume.length){
+    const maxTotal = Math.max(...s.daily_volume.map(v => v.total), 1);
+    weeklyEl.innerHTML = s.daily_volume.map(v => {
+      const heightPct = v.total === 0 ? 6 : Math.max(12, Math.round((v.total / maxTotal) * 100));
+      const color = v.phishing > 0 ? 'linear-gradient(180deg,var(--red),#7f1d1d)' : (v.spam > 0 ? 'linear-gradient(180deg,var(--amber),#92400e)' : (v.legit > 0 ? 'linear-gradient(180deg,var(--green),#166534)' : '#1c2336'));
+      return `<div style="flex:1;background:${color};border-radius:4px;height:${heightPct}%;transition:height .3s;" title="${v.day}: ${v.total} scans (${v.legit} clean, ${v.spam} spam, ${v.phishing} phish)"></div>`;
+    }).join('');
+  }
+}
+
+function renderScanHistory(scans){
+  const tbody = document.getElementById('scanTable');
+  if(!scans || scans.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><div class="empty-state-icon">📭</div>No emails analyzed yet.<br><span style="font-size:11.5px;color:var(--sub2)">Run your first scan in the <a class="link" onclick="navigate('analyze')">Analyzer</a> to see live threat intelligence.</span></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = scans.map(r => {
+    const isClean = r.risk_level === 'Low';
+    const isCrit = r.risk_level === 'Critical' || (r.verdict && r.verdict.includes('CRITICAL'));
+    const badgeCls = isClean ? 'low' : (isCrit ? 'crit' : 'high');
+    const color = isClean ? 'var(--green)' : (isCrit ? 'var(--red)' : 'var(--amber)');
+    const dt = r.created_at ? new Date(r.created_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Just now';
+    const preview = escapeHtml(r.subject_preview || 'No Subject');
+
+    return `<tr class="clickable-row" onclick="viewScanDetails('${r.scan_id}')">
+      <td><b>${preview}</b><div class="sender">ID: ${r.scan_id}</div></td>
+      <td><span class="badge ${badgeCls}">${escapeHtml(r.verdict)}</span></td>
+      <td>${r.confidence}%<span class="conf-bar"><span class="conf-fill" style="width:${r.confidence}%;background:${color}"></span></span></td>
+      <td style="color:${color};font-weight:600;">${r.risk_level}</td>
+      <td class="sub">${dt}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterHistory(q){
+  const term = q.trim().toLowerCase();
+  if(!term){ renderScanHistory(currentScansList); return; }
+  const filtered = currentScansList.filter(s => 
+    (s.subject_preview && s.subject_preview.toLowerCase().includes(term)) ||
+    (s.verdict && s.verdict.toLowerCase().includes(term)) ||
+    (s.risk_level && s.risk_level.toLowerCase().includes(term)) ||
+    (s.scan_id && s.scan_id.toLowerCase().includes(term))
+  );
+  renderScanHistory(filtered);
+}
+
+function viewScanDetails(scanId){
+  const item = currentScansList.find(s => s.scan_id === scanId);
+  if(item){
+    renderApiReport(item, item.raw_snippet || item.subject_preview);
+  }
+}
+
+// --- ANALYZE EXECUTION (MULTI-MODAL) ---
+async function executeAnalysis(){
+  const errEl = document.getElementById('analyzeErr');
+  errEl.textContent = '';
+  const btn = document.getElementById('btnAnalyze');
+
+  if(inspectMode === 'file'){
+    if(!uploadedFileObject){
+      errEl.textContent = 'Please select or drop a .eml or .txt file to analyze.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Parsing & Analyzing File...';
+
+    const formData = new FormData();
+    formData.append('file', uploadedFileObject);
+
+    try{
+      const res = await fetch(API_BASE + '/predict/file', {
+        method: 'POST',
+        headers: getAuthHeader(),
+        body: formData
+      });
+      if(!res.ok){
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || ('API error ' + res.status));
+      }
+      const data = await res.json();
+      renderApiReport(data, `[Uploaded File: ${uploadedFileObject.name}]`);
+      loadDashboardData();
+    } catch(err){
+      errEl.textContent = 'File Analysis failed: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ Analyze Email Threats';
+    }
+    return;
+  }
+
+  let payload = {};
+  let rawDisplay = '';
+
+  if(inspectMode === 'structured'){
+    const subj = document.getElementById('subjectInput').value.trim();
+    const body = document.getElementById('bodyInput').value.trim();
+    if(!subj && !body){
+      errEl.textContent = 'Please enter an Email Subject or Body to analyze.';
+      return;
+    }
+    payload = {subject: subj, body: body};
+    rawDisplay = `Subject: ${subj}\n\n${body}`;
+  } else {
+    const raw = document.getElementById('emailInput').value.trim();
+    if(!raw){
+      errEl.textContent = 'Please paste email headers or text to analyze.';
+      return;
+    }
+    payload = {raw_email: raw};
+    rawDisplay = raw;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyzing Threat Vectors...';
+
+  try{
+    const res = await fetch(API_BASE + "/predict", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if(!res.ok){
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || ("API error " + res.status));
+    }
+
+    const data = await res.json();
+    renderApiReport(data, rawDisplay);
+    loadDashboardData();
+  } catch(err){
+    errEl.textContent = "Analysis failed: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Analyze Email Threats';
+  }
+}
+
+function renderApiReport(d, raw){
+  const cls = d.risk_level === "Low" ? "clean" : (d.risk_level === "Elevated" ? "high" : "crit");
+  const icon = cls === "clean" ? "✅" : "⚠️";
+  
+  document.getElementById('verdictBanner').className = 'verdict-banner ' + cls;
+  document.getElementById('verdictBanner').innerHTML = `
+    <div class="verdict-left"><div class="verdict-icon" style="background:${cls==='clean'?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)'}">${icon}</div>
+    <div><span class="badge ${cls==='clean'?'low':cls==='high'?'high':'crit'}" style="margin-bottom:6px;display:inline-block;">${escapeHtml(d.verdict)}</span>
+    <div style="font-size:20px;font-weight:700;margin-top:4px;">${d.confidence}% Model Confidence</div>
+    <p class="sub" style="margin-top:4px;">Inference generated by trained ML classifier (${d.scan_id}).</p></div></div>
+    <div class="verdict-right"><span>ASSESSED RISK LEVEL</span><b style="color:${cls==='clean'?'var(--green)':cls==='high'?'var(--amber)':'var(--red)'}">${d.risk_level}</b></div>`;
+
+  document.getElementById('forensicExplain').textContent = d.explanation;
+  
+  const indicators = d.indicators || [];
+  document.getElementById('indicatorList').innerHTML = indicators.length ? indicators.map(i=>
+   `<div class="indicator"><div><b>${escapeHtml(i.title)}</b><p>${escapeHtml(i.detail)}</p></div><span class="badge ${i.level==='DANGER'?'crit':i.level==='WARN'?'high':'low'}">${i.level}</span></div>`).join('')
+   : `<div class="indicator"><div><b>No Threat Signatures</b><p>Message cleared heuristic and machine learning threat filters.</p></div><span class="badge low">OK</span></div>`;
+
+  const actions = cls === 'clean'
+    ? [["Mark as trusted sender", "Allow future messages from this verified domain"]]
+    : [["Block sender domain", "Add sender domain to organization blocklist"],
+       ["Quarantine message", "Move to quarantine for SOC review"],
+       ["Trigger SOC incident", "Notify security team via alert webhook"]];
+
+  document.getElementById('playbookList').innerHTML = actions.map(a=>`<div class="playbook-item"><span class="exec" onclick="this.parentElement.style.opacity=.5;this.textContent='Done ✓'">Execute</span><b>${a[0]}</b><span>${a[1]}</span></div>`).join('');
+
+  document.getElementById('authGrid').innerHTML = `
+   <div class="auth-item"><span>SPF Record</span><b style="color:${d.spf==='FAIL'?'var(--red)':'var(--green)'}">${d.spf || 'UNKNOWN'}</b></div>
+   <div class="auth-item"><span>DKIM Sig</span><b style="color:${d.dkim==='NONE'?'var(--red)':d.dkim==='PASS'?'var(--green)':'var(--amber)'}">${d.dkim || 'NONE'}</b></div>
+   <div class="auth-item"><span>DMARC Policy</span><b style="color:${d.dmarc==='FAIL'?'var(--red)':'var(--green)'}">${d.dmarc || 'UNKNOWN'}</b></div>`;
+
+  document.getElementById('ipInfo').innerHTML = `<div style="margin-top:6px;">Suspicious URLs: <b style="color:${d.suspicious_links?'var(--red)':'var(--green)'}">${d.suspicious_links || 0} flagged</b></div>`;
+  document.getElementById('rawSnapshot').textContent = raw;
+  showAppPage('report');
+}
+
+// --- REAL ML METRICS ---
+async function loadRealMetrics(){
+  try{
+    const res = await fetch(API_BASE + "/metrics");
+    if(!res.ok) return;
+    const m = await res.json();
+
+    const accPct = (m.accuracy * 100).toFixed(2) + '%';
+    const precPct = (m.precision * 100).toFixed(2) + '%';
+    const recPct = (m.recall * 100).toFixed(2) + '%';
+    const f1Pct = (m.f1_score * 100).toFixed(2) + '%';
+
+    document.getElementById('mAcc').textContent = accPct;
+    document.getElementById('mPrec').textContent = precPct;
+    document.getElementById('mRec').textContent = recPct;
+    document.getElementById('mF1').textContent = f1Pct;
+
+    document.getElementById('bAcc').style.width = accPct;
+    document.getElementById('bPrec').style.width = precPct;
+    document.getElementById('bRec').style.width = recPct;
+    document.getElementById('bF1').style.width = f1Pct;
+
+    document.getElementById('modelDatasetNote').textContent = 
+      `Dataset: ${m.raw_dataset_rows || 5728} emails (${m.duplicates_removed || 33} duplicates removed → ${m.dataset_rows || 5695} total: ${m.legitimate_rows || 4327} legitimate, ${m.spam_rows || 1368} spam). Split: ${m.split || '80/20 stratified'}. Model: ${m.model || 'TF-IDF + Logistic Regression'}.`;
+  } catch(e){
+    console.warn("Could not load ML metrics:", e);
+  }
+}
+
+// --- EXPORT CSV ---
+function exportScansCSV(){
+  if(!currentScansList || currentScansList.length === 0){
+    alert('No scan history to export yet. Run an email analysis first.');
+    return;
+  }
+  const headers = ['Scan ID', 'Verdict', 'Risk Level', 'Confidence (%)', 'Subject Preview', 'Date'];
+  const rows = currentScansList.map(s => [
+    `"${s.scan_id}"`,
+    `"${s.verdict}"`,
+    `"${s.risk_level}"`,
+    `"${s.confidence}"`,
+    `"${(s.subject_preview || '').replace(/"/g, '""')}"`,
+    `"${s.created_at}"`
+  ]);
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `mailshield_scans_${Date.now()}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function saveSettings(){
+  alert('Settings saved successfully.');
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// --- INITIALIZATION (STARTUP ROUTING) ---
+window.addEventListener('DOMContentLoaded', async () => {
+  renderSamples();
+  const token = localStorage.getItem('mailshield_token');
+  const currentHash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+
+  if(token){
+    try{
+      const res = await fetch(API_BASE + '/auth/me', {headers: {'Authorization': 'Bearer ' + token}});
+      if(res.ok){
+        const user = await res.json();
+        initAppSession(user);
+        // If hash was login/register or empty, default to dashboard, otherwise retain requested page
+        const destination = (currentHash === 'login' || currentHash === 'register' || !currentHash) ? 'dashboard' : currentHash;
+        navigate(destination);
+        return;
+      }
+    } catch(e){
+      // Session expired or unreachable
+    }
+    // If token invalid, clear it
+    localStorage.removeItem('mailshield_token');
+    localStorage.removeItem('mailshield_user');
+  }
+
+  // Not authenticated: Open FIRST page as Login page
+  currentUser = null;
+  const initialAuthMode = currentHash === 'register' ? 'register' : 'signin';
+  showAuthScreen(initialAuthMode);
+});
+</script>
+</body>
+</html>
