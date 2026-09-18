@@ -16,12 +16,12 @@ import urllib.request
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
-logger = logging.getLogger("mailshield.gmail")
+from config import (
+    get_google_client_id, get_google_client_secret,
+    get_google_redirect_uri, get_frontend_url
+)
 
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+logger = logging.getLogger("mailshield.gmail")
 
 GMAIL_SCOPES = [
     "openid",
@@ -38,8 +38,8 @@ GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 
 def get_google_auth_url(state: str = "") -> str:
     """Constructs the Google OAuth 2.0 authorization URL requesting Gmail read-only access."""
-    cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback").strip()
+    cid = get_google_client_id()
+    redirect_uri = get_google_redirect_uri()
     
     params = {
         "client_id": cid,
@@ -55,9 +55,9 @@ def get_google_auth_url(state: str = "") -> str:
 
 def exchange_code_for_tokens(code: str) -> Dict[str, Any]:
     """Exchanges an authorization code for access and refresh tokens."""
-    cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback").strip()
+    cid = get_google_client_id()
+    secret = get_google_client_secret()
+    redirect_uri = get_google_redirect_uri()
     
     data = urllib.parse.urlencode({
         "code": code,
@@ -79,8 +79,8 @@ def exchange_code_for_tokens(code: str) -> Dict[str, Any]:
 
 def refresh_access_token(refresh_token: str) -> Dict[str, Any]:
     """Uses the stored refresh token to obtain a fresh access token."""
-    cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    cid = get_google_client_id()
+    secret = get_google_client_secret()
     
     data = urllib.parse.urlencode({
         "refresh_token": refresh_token,

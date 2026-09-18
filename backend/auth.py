@@ -7,10 +7,10 @@ import secrets
 import time
 from typing import Dict, Optional, Tuple, Any
 
-SECRET_KEY = os.environ.get("MAILSHIELD_SECRET_KEY", "mailshield-ai-cybersecurity-secret-key-2026")
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+from config import (
+    get_secret_key, get_google_client_id, get_google_client_secret,
+    get_google_redirect_uri, is_google_oauth_configured, get_google_oauth_info
+)
 
 
 def hash_password(password: str) -> Tuple[str, str]:
@@ -63,7 +63,8 @@ def create_jwt_token(payload: Dict[str, Any], expires_seconds: int = 86400 * 7) 
     payload_b64 = _b64_encode(json.dumps(body, separators=(",", ":")).encode("utf-8"))
     
     signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-    signature = hmac.new(SECRET_KEY.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    secret_key = get_secret_key()
+    signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
     sig_b64 = _b64_encode(signature)
     
     return f"{header_b64}.{payload_b64}.{sig_b64}"
@@ -78,7 +79,8 @@ def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         header_b64, payload_b64, sig_b64 = parts
         
         signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-        expected_sig = hmac.new(SECRET_KEY.encode("utf-8"), signing_input, hashlib.sha256).digest()
+        secret_key = get_secret_key()
+        expected_sig = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
         actual_sig = _b64_decode(sig_b64)
         
         if not hmac.compare_digest(expected_sig, actual_sig):
@@ -95,21 +97,3 @@ def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     except Exception:
         return None
 
-
-def is_google_oauth_configured() -> bool:
-    """Checks if Google OAuth credentials are configured via environment variables."""
-    cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    sec = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
-    return bool(cid and sec and not cid.startswith("YOUR_") and not sec.startswith("YOUR_"))
-
-
-def get_google_oauth_info() -> Dict[str, Any]:
-    configured = is_google_oauth_configured()
-    return {
-        "configured": configured,
-        "client_id": os.environ.get("GOOGLE_CLIENT_ID", "").strip() if configured else None,
-        "message": "Google OAuth is ready." if configured else (
-            "Google OAuth is not configured on this server. "
-            "To enable Google Sign-In, please set the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables in your backend environment."
-        )
-    }

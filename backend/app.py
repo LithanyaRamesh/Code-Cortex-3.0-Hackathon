@@ -28,14 +28,16 @@ from database import (
     save_feedback, get_feedback_stats, get_all_feedback,
     delete_scan, clear_all_scans, get_alerts
 )
-from auth import (
-    hash_password, verify_password, create_jwt_token, decode_jwt_token,
+from config import (
+    get_frontend_url, get_google_redirect_uri,
     is_google_oauth_configured, get_google_oauth_info
+)
+from auth import (
+    hash_password, verify_password, create_jwt_token, decode_jwt_token
 )
 from gmail_service import (
     get_google_auth_url, exchange_code_for_tokens, refresh_access_token,
-    get_google_user_info, list_gmail_messages, get_gmail_message_detail,
-    FRONTEND_URL
+    get_google_user_info, list_gmail_messages, get_gmail_message_detail
 )
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
@@ -356,20 +358,22 @@ def google_status():
 
 @app.get("/auth/google/login")
 def google_auth_login(state: Optional[str] = None):
+    frontend_url = get_frontend_url()
     if not is_google_oauth_configured():
-        return RedirectResponse(url=f"{FRONTEND_URL}/#error=google_not_configured")
+        return RedirectResponse(url=f"{frontend_url}/#error=google_not_configured")
     auth_url = get_google_auth_url(state=state or "")
     return RedirectResponse(url=auth_url)
 
 
 @app.get("/auth/google/callback")
 def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None, state: Optional[str] = None):
+    frontend_url = get_frontend_url()
     if error or not code:
         err_msg = error or "google_auth_failed"
-        return RedirectResponse(url=f"{FRONTEND_URL}/#error={err_msg}")
+        return RedirectResponse(url=f"{frontend_url}/#error={err_msg}")
 
     if not is_google_oauth_configured():
-        return RedirectResponse(url=f"{FRONTEND_URL}/#error=google_not_configured")
+        return RedirectResponse(url=f"{frontend_url}/#error=google_not_configured")
 
     try:
         token_data = exchange_code_for_tokens(code)
@@ -383,7 +387,7 @@ def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None
         full_name = user_info.get("name") or google_email.split("@")[0]
 
         if not google_email:
-            return RedirectResponse(url=f"{FRONTEND_URL}/#error=no_email_from_google")
+            return RedirectResponse(url=f"{frontend_url}/#error=no_email_from_google")
 
         # Find or create user
         user = get_user_by_email(google_email)
@@ -413,10 +417,10 @@ def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None
             "full_name": user["full_name"]
         })
 
-        return RedirectResponse(url=f"{FRONTEND_URL}/#token={token}&gmail_connected=1")
+        return RedirectResponse(url=f"{frontend_url}/#token={token}&gmail_connected=1")
     except Exception as e:
         logger.error(f"Google OAuth callback error: {e}")
-        return RedirectResponse(url=f"{FRONTEND_URL}/#error=oauth_exchange_failed")
+        return RedirectResponse(url=f"{frontend_url}/#error=oauth_exchange_failed")
 
 
 @app.post("/auth/google")
